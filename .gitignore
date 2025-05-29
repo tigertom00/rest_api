@@ -1,0 +1,65 @@
+# Python and Django-specific files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+*.egg
+*.eggs/
+build/
+dist/
+*.sqlite3
+# migrations/  # Uncomment if you want to exclude migrations (optional)
+
+# Environment and sensitive files
+.env
+.env.*
+*.env
+*.secret
+*.key
+
+# Virtual environments
+venv/
+env/
+.venv/
+*.venv/
+.envrc
+Pipfile.lock
+
+# IDE and editor files
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+.editorconfig
+
+# Testing and coverage
+.pytest_cache/
+.coverage
+coverage/
+*.cover
+*.log
+*.logs
+
+# Local media and static files
+media/
+static/
+staticfiles/
+
+# OS-specific and temporary files
+*.bak
+*.swp
+*~
+.DS_Store
+Thumbs.db
+
+# Docker-specific files (optional, depending on your workflow)
+# .dockerignore
+# Dockerfile
+# docker-compose.yml
+# docker-compose.yaml
+
+# Other project-specific files
+*.bak
+*.log
+*.pid
