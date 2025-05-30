@@ -2,6 +2,10 @@ from django.shortcuts import render
 from rest_framework import viewsets, permissions
 from django.contrib.auth import get_user_model
 from .serializers import UsersSerializer
+from django.http import HttpResponse
+
+def index(request):
+    return HttpResponse("Welcome to the REST API!")
 
 
 # User views

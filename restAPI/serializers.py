@@ -42,7 +42,6 @@ class TokenObtainLifetimeSerializer(TokenObtainPairSerializer):
 class TokenRefreshLifetimeSerializer(TokenRefreshSerializer):
 
     def validate(self, attrs):
-        print(attrs)
         data = super().validate(attrs)
         refresh = RefreshToken(attrs['refresh'])
         data['lifetime'] = int(refresh.access_token.lifetime.total_seconds())
