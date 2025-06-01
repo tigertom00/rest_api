@@ -2,11 +2,10 @@ from pathlib import Path
 import os
 from datetime import timedelta
 
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-
-SECRET_KEY = 'elfkfelgklØLF&/39803)9følfølf3FLKF39803rf9833lflflfkef32g'
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -15,13 +14,23 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    #'django.contrib.sites',
     # 3rd party apps
     'rest_framework',
+    'rest_framework.authtoken',
+    #'allauth',
+    #'allauth.account',
+    #'allauth.socialaccount',
+    #'dj_rest_auth',  # Django REST framework authentication
+    #'dj_rest_auth.registration',
     'rest_framework_simplejwt',
-    'corsheaders',
+    'rest_framework_simplejwt.token_blacklist',
+    'corsheaders',  
+    'drf_spectacular',  # Core API for common functionality
     # Local apps
     'restAPI'
 ]
+
 
 # rest framework settings
 REST_FRAMEWORK = {
@@ -31,35 +40,101 @@ REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.IsAuthenticated',
     ],
-}
-# Simple JWT settings
-SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=15),
-    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
-    'ROTATE_REFRESH_TOKENS': True,
-    'BLACKLIST_AFTER_ROTATION': True,
-    'AUTH_HEADER_TYPES': ('Bearer', 'jwt'),
+    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',  
 }
 
+# Allauth settings
+
+#SITE_ID = 1  # Required for allauth
+
+#AUTHENTICATION_BACKENDS = [
+    
+    # Needed to login by username in Django admin, regardless of `allauth`
+    #'django.contrib.auth.backends.ModelBackend',
+
+    # `allauth` specific authentication methods, such as login by email
+    #'allauth.account.auth_backends.AuthenticationBackend',
+    
+#]
+
+
+#ACCOUNT_ADAPTER = "allauth.account.adapter.DefaultAccountAdapter"
+
+#ACCOUNT_LOGIN_METHODS = {'email'}
+#ACCOUNT_SIGNUP_FIELDS = ['username', 'email*', 'password1*', 'password2*']
+
+# * DJ Rest Auth
+#REST_AUTH_SERIALIZERS = {
+    #'USER_DETAILS_SERIALIZER': 'restAPI.serializers.UsersSerializer'
+#}
+#REST_USE_JWT = True
+
+# Simple JWT settings
+#SIMPLE_JWT = {
+    #'ACCESS_TOKEN_LIFETIME': timedelta(minutes=15),
+    ##'ROTATE_REFRESH_TOKENS': True,
+    #'BLACKLIST_AFTER_ROTATION': True,
+    #'AUTH_HEADER_TYPES': ('jwt'),
+#}
+
+# CORS settings to allow your frontend to communicate with the backend
+CORS_ALLOW_ALL_ORIGINS = True
+CORS_ALLOWED_ORIGINS = [
+    'http://localhost:19006',  # Expo default port
+    'http://127.0.0.1:8000',   # Django backend
+]
+
+# User model
+
 AUTH_USER_MODEL = 'restAPI.CustomUser'
+
+# Spec settings for drf_spectacular
+SPECTACULAR_SETTINGS = {
+    'TITLE': 'DjangoAPI',
+    'DESCRIPTION': 'API for all things...',
+    'VERSION': '0.0.1',
+    'SERVE_INCLUDE_SCHEMA': True,
+}
+
+# Static files (CSS, JavaScript, Images)
+# https://docs.djangoproject.com/en/5.2/howto/static-files/
+STATIC_URL = '/static/'
+MEDIA_URL = '/media/'
+STATIC_ROOT = os.path.join(BASE_DIR, 'static/')
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media/')
+
+# Email settings
+
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'smtp.gmail.com'  # Or your SMTP server
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+EMAIL_HOST_USER = os.getenv('EMAIL_USERNAME')
+EMAIL_HOST_PASSWORD = os.getenv('EMAIL_PASSWORD')
+
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
-    "corsheaders.middleware.CorsMiddleware",
+    "corsheaders.middleware.CorsMiddleware",    # CORS middleware
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    #"allauth.account.middleware.AccountMiddleware", # Allauth middleware
 ]
 
 ROOT_URLCONF = 'srv.urls'
 
+
+
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [
+            BASE_DIR / 'templates',  # Add this to include custom templates
+        ],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -95,6 +170,8 @@ AUTH_PASSWORD_VALIDATORS = [
 ]
 
 
+
+
 # Internationalization
 # https://docs.djangoproject.com/en/5.2/topics/i18n/
 
@@ -107,13 +184,6 @@ USE_I18N = True
 USE_TZ = True
 
 
-# Static files (CSS, JavaScript, Images)
-# https://docs.djangoproject.com/en/5.2/howto/static-files/
-STATIC_URL = '/static/'
-MEDIA_URL = '/media/'
-STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static_in_env')]
-STATIC_ROOT = os.path.join(BASE_DIR, 'static/')
-MEDIA_ROOT = os.path.join(BASE_DIR, 'media/')
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field

@@ -18,6 +18,7 @@ class CustomUser(AbstractUser):
     profile_picture = models.ImageField(
         upload_to='profile_image', default='default/profile.png')
     dark_mode = models.BooleanField(default=False)
+    
 
 
     def save(self, *args, **kwargs):
