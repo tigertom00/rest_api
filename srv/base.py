@@ -82,6 +82,7 @@ CORS_ALLOW_ALL_ORIGINS = True
 CORS_ALLOWED_ORIGINS = [
     'http://localhost:19006',  # Expo default port
     'http://127.0.0.1:8000',   # Django backend
+    'http://192.168.106.126:8000',
 ]
 
 # User model
