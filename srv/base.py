@@ -70,12 +70,12 @@ REST_FRAMEWORK = {
 #REST_USE_JWT = True
 
 # Simple JWT settings
-#SIMPLE_JWT = {
-    #'ACCESS_TOKEN_LIFETIME': timedelta(minutes=15),
-    ##'ROTATE_REFRESH_TOKENS': True,
-    #'BLACKLIST_AFTER_ROTATION': True,
-    #'AUTH_HEADER_TYPES': ('jwt'),
-#}
+SIMPLE_JWT = {
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=15),
+    'ROTATE_REFRESH_TOKENS': True,
+    'BLACKLIST_AFTER_ROTATION': True,
+    'AUTH_HEADER_TYPES': ('Bearer'),
+}
 
 # CORS settings to allow your frontend to communicate with the backend
 CORS_ALLOW_ALL_ORIGINS = True

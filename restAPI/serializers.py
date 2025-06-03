@@ -96,3 +96,7 @@ class TokenRefreshLifetimeSerializer(TokenRefreshSerializer):
         refresh = RefreshToken(attrs['refresh'])
         data['lifetime'] = int(refresh.access_token.lifetime.total_seconds())
         return data
+
+#* Blacklist Token Serializer
+class BlacklistTokenSerializer(serializers.Serializer):
+    refresh_token = serializers.CharField()
