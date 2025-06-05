@@ -35,7 +35,8 @@ INSTALLED_APPS = [
 # rest framework settings
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
-        'rest_framework_simplejwt.authentication.JWTAuthentication',
+        'restAPI.clerk.ClerkAuthentication',  # Custom authentication class for Clerk
+        'rest_framework_simplejwt.authentication.JWTAuthentication', # Simple JWT authentication
     ],
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.IsAuthenticated',
@@ -70,12 +71,15 @@ REST_FRAMEWORK = {
 #REST_USE_JWT = True
 
 # Simple JWT settings
-#SIMPLE_JWT = {
-    #'ACCESS_TOKEN_LIFETIME': timedelta(minutes=15),
-    ##'ROTATE_REFRESH_TOKENS': True,
-    #'BLACKLIST_AFTER_ROTATION': True,
-    #'AUTH_HEADER_TYPES': ('jwt'),
-#}
+SIMPLE_JWT = {
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=15),
+    'ROTATE_REFRESH_TOKENS': True,
+    'BLACKLIST_AFTER_ROTATION': True,
+    'AUTH_HEADER_TYPES': ('jwt'),
+}
+
+# Clerk settings
+CLERK_JWT_AUDIENCE = "https://upright-beagle-49.clerk.accounts.dev"  # e.g. "clerk.abc123"
 
 # CORS settings to allow your frontend to communicate with the backend
 CORS_ALLOW_ALL_ORIGINS = True
