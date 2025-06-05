@@ -1,7 +1,7 @@
 from django.shortcuts import render
 from rest_framework import viewsets, permissions, status, generics
 from django.contrib.auth import get_user_model
-from .serializers import UsersSerializer, CreateUsersSerializer
+from .serializers import UsersSerializer, CreateUsersSerializer, BlacklistTokenSerializer
 from django.http import HttpResponse
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -41,10 +41,13 @@ class BlacklistTokenView(APIView):
     permission_classes = [permissions.AllowAny]
 
     def post(self, request,):
-        try:
-            refresh_token = request.data["refresh_token"]
-            token = RefreshToken(refresh_token)
-            token.blacklist()
-            return Response(status=status.HTTP_202_ACCEPTED)
-        except Exception as e:
-            return Response(status=status.HTTP_400_BAD_REQUEST)
+        serializer = BlacklistTokenSerializer(data=request.data)
+        if serializer.is_valid():
+            try:
+                refresh_token = request.data["refresh_token"]
+                token = RefreshToken(refresh_token)
+                token.blacklist()
+                return Response(status=status.HTTP_202_ACCEPTED)
+            except Exception:
+                return Response(status=status.HTTP_400_BAD_REQUEST)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

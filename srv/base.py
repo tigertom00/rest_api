@@ -75,7 +75,7 @@ SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(minutes=15),
     'ROTATE_REFRESH_TOKENS': True,
     'BLACKLIST_AFTER_ROTATION': True,
-    'AUTH_HEADER_TYPES': ('jwt'),
+    'AUTH_HEADER_TYPES': ('Bearer'),
 }
 
 # Clerk settings
