@@ -89,3 +89,4 @@ class TokenRefreshLifetimeSerializer(TokenRefreshSerializer):
 #* Blacklist Token Serializer
 class BlacklistTokenSerializer(serializers.Serializer):
     refresh_token = serializers.CharField()
+    

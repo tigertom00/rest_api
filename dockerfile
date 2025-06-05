@@ -25,8 +25,10 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy the Django project to the container
 COPY . /app/
 
+RUN python manage.py collectstatic --noinput
+
 # Expose the Django port
 EXPOSE 8555
 
 # Run Django’s development server
-CMD ["python", "manage.py", "runserver", "0.0.0.0:8555"]
+CMD ["gunicorn", "srv.wsgi:application", "--bind", "0.0.0.0:8555"]

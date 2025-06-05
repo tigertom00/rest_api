@@ -1,16 +1,22 @@
 import jwt
 import requests
+import os
 from django.conf import settings
 from rest_framework import authentication, exceptions
 from django.contrib.auth import get_user_model
+from dotenv import load_dotenv
+load_dotenv(settings.BASE_DIR / '.env')
 
-User = get_user_model()
 
-CLERK_JWT_ISSUER = "https://upright-beagle-49.clerk.accounts.dev"
+
+
+CLERK_JWT_ISSUER = os.getenv('CLERK_URL')
 CLERK_JWT_PUBLIC_KEY_URL = f"{CLERK_JWT_ISSUER}/.well-known/jwks.json"
 
 class ClerkAuthentication(authentication.BaseAuthentication):
     def authenticate(self, request):
+        User = get_user_model()
+        
         auth_header = request.headers.get('Authorization')
         if not auth_header or not auth_header.startswith('Bearer '):
             return None

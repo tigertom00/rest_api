@@ -13,8 +13,20 @@ import json
 from django.conf import settings
 from django.http import HttpResponse, JsonResponse
 from django.views.decorators.csrf import csrf_exempt
+from drf_spectacular.extensions import OpenApiAuthenticationExtension
 
 User = get_user_model()
+
+class ClerkAuthenticationScheme(OpenApiAuthenticationExtension):
+    target_class = 'restAPI.clerk.ClerkAuthentication'  # full import path
+    name = 'ClerkAuth'
+
+    def get_security_definition(self, auto_schema):
+        return {
+            'type': 'http',
+            'scheme': 'bearer',
+            'bearerFormat': 'JWT',
+        }
 
 #* Clerk Webhook View
 
@@ -111,6 +123,7 @@ class UsersViewSet(viewsets.ModelViewSet):
 #* Blacklist Token View
 class BlacklistTokenView(APIView):
     permission_classes = [permissions.AllowAny]
+    serializer_class = BlacklistTokenSerializer
 
     def post(self, request,):
         serializer = BlacklistTokenSerializer(data=request.data)

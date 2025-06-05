@@ -18,11 +18,6 @@ INSTALLED_APPS = [
     # 3rd party apps
     'rest_framework',
     'rest_framework.authtoken',
-    #'allauth',
-    #'allauth.account',
-    #'allauth.socialaccount',
-    #'dj_rest_auth',  # Django REST framework authentication
-    #'dj_rest_auth.registration',
     'rest_framework_simplejwt',
     'rest_framework_simplejwt.token_blacklist',
     'corsheaders',  
@@ -31,94 +26,10 @@ INSTALLED_APPS = [
     'restAPI'
 ]
 
+SECRET_KEY = os.getenv('SECRET_KEY')
 
-# rest framework settings
-REST_FRAMEWORK = {
-    'DEFAULT_AUTHENTICATION_CLASSES': [
-        'restAPI.clerk.ClerkAuthentication',  # Custom authentication class for Clerk
-        'rest_framework_simplejwt.authentication.JWTAuthentication', # Simple JWT authentication
-    ],
-    'DEFAULT_PERMISSION_CLASSES': [
-        'rest_framework.permissions.IsAuthenticated',
-    ],
-    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',  
-}
-
-# Allauth settings
-
-#SITE_ID = 1  # Required for allauth
-
-#AUTHENTICATION_BACKENDS = [
-    
-    # Needed to login by username in Django admin, regardless of `allauth`
-    #'django.contrib.auth.backends.ModelBackend',
-
-    # `allauth` specific authentication methods, such as login by email
-    #'allauth.account.auth_backends.AuthenticationBackend',
-    
-#]
-
-
-#ACCOUNT_ADAPTER = "allauth.account.adapter.DefaultAccountAdapter"
-
-#ACCOUNT_LOGIN_METHODS = {'email'}
-#ACCOUNT_SIGNUP_FIELDS = ['username', 'email*', 'password1*', 'password2*']
-
-# * DJ Rest Auth
-#REST_AUTH_SERIALIZERS = {
-    #'USER_DETAILS_SERIALIZER': 'restAPI.serializers.UsersSerializer'
-#}
-#REST_USE_JWT = True
-
-# Simple JWT settings
-SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=15),
-    'ROTATE_REFRESH_TOKENS': True,
-    'BLACKLIST_AFTER_ROTATION': True,
-    'AUTH_HEADER_TYPES': ('Bearer'),
-}
-
-# Clerk settings
-CLERK_JWT_AUDIENCE = "https://upright-beagle-49.clerk.accounts.dev"  # e.g. "clerk.abc123"
-CLERK_WEBHOOK_SECRET = "your_clerk_webhook_secret" #// Replace with your actual Clerk webhook secret
-# SECURITY WARNING: keep the secret key used in production secret!
-
-# CORS settings to allow your frontend to communicate with the backend
-CORS_ALLOW_ALL_ORIGINS = True
-CORS_ALLOWED_ORIGINS = [
-    'http://localhost:19006',  # Expo default port
-    'http://127.0.0.1:8000',   # Django backend
-    'http://192.168.106.126:8000',
-]
-
-# User model
-
+#* User model
 AUTH_USER_MODEL = 'restAPI.CustomUser'
-
-# Spec settings for drf_spectacular
-SPECTACULAR_SETTINGS = {
-    'TITLE': 'DjangoAPI',
-    'DESCRIPTION': 'API for all things...',
-    'VERSION': '0.0.1',
-    'SERVE_INCLUDE_SCHEMA': True,
-}
-
-# Static files (CSS, JavaScript, Images)
-# https://docs.djangoproject.com/en/5.2/howto/static-files/
-STATIC_URL = '/static/'
-MEDIA_URL = '/media/'
-STATIC_ROOT = os.path.join(BASE_DIR, 'static/')
-MEDIA_ROOT = os.path.join(BASE_DIR, 'media/')
-
-# Email settings
-
-EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-EMAIL_HOST = 'smtp.gmail.com'  # Or your SMTP server
-EMAIL_PORT = 587
-EMAIL_USE_TLS = True
-EMAIL_HOST_USER = os.getenv('EMAIL_USERNAME')
-EMAIL_HOST_PASSWORD = os.getenv('EMAIL_PASSWORD')
-
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
@@ -129,12 +40,9 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    #"allauth.account.middleware.AccountMiddleware", # Allauth middleware
 ]
 
 ROOT_URLCONF = 'srv.urls'
-
-
 
 TEMPLATES = [
     {
@@ -156,9 +64,7 @@ TEMPLATES = [
 WSGI_APPLICATION = 'srv.wsgi.application'
 
 
-
-
-# Password validation
+#* Password validation
 # https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators
 
 AUTH_PASSWORD_VALIDATORS = [
@@ -176,23 +82,80 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
+#* rest framework settings
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'restAPI.clerk.ClerkAuthentication',  # Custom authentication class for Clerk
+        'rest_framework_simplejwt.authentication.JWTAuthentication', # Simple JWT authentication
+    ],
+    'DEFAULT_PERMISSION_CLASSES': [
+        'rest_framework.permissions.IsAuthenticated',
+    ],
+    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',  
+}
+
+#* Simple JWT settings
+SIMPLE_JWT = {
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=15),
+    'ROTATE_REFRESH_TOKENS': True,
+    'BLACKLIST_AFTER_ROTATION': True,
+    'AUTH_HEADER_TYPES': ('Bearer'),
+}
+
+#* Clerk settings
+CLERK_JWT_AUDIENCE = os.getenv('CLERK_URL')  # e.g. "clerk.abc123"
+CLERK_WEBHOOK_SECRET = os.getenv('CLERK_WEBHOOK_KEY') 
+# SECURITY WARNING: keep the secret key used in production secret!
+
+#* CORS settings to allow your frontend to communicate with the backend
+CORS_ALLOW_ALL_ORIGINS = False
+CORS_ALLOWED_ORIGINS = [
+    'http://localhost:19006',  # Expo default port
+    'http://127.0.0.1:8555',   # Django backend
+    'http://10.20.30.203:8555',  # Add your frontend URL here
+    'http://api.nxfs.no:8555',
+]
+CORS_ALLOW_HEADERS = [
+  
+]
+
+#* Spec settings for drf_spectacular
+SPECTACULAR_SETTINGS = {
+    'TITLE': 'DjangoAPI',
+    'DESCRIPTION': 'API for all things...',
+    'VERSION': '0.0.1',
+    'SERVE_INCLUDE_SCHEMA': True,
+}
+
+#* Static files (CSS, JavaScript, Images)
+# https://docs.djangoproject.com/en/5.2/howto/static-files/
+STATIC_URL = '/static/'
+MEDIA_URL = '/media/'
+STATIC_ROOT = os.path.join(BASE_DIR, 'static/')
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media/')
+
+#* Email settings
+
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'smtp.gmail.com'  # Or your SMTP server
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+EMAIL_HOST_USER = os.getenv('EMAIL_USERNAME')
+EMAIL_HOST_PASSWORD = os.getenv('EMAIL_PASSWORD')
 
 
-
-# Internationalization
+#* Internationalization
 # https://docs.djangoproject.com/en/5.2/topics/i18n/
 
-LANGUAGE_CODE = 'en-us'
+LANGUAGE_CODE = 'nb-no'
 
-TIME_ZONE = 'UTC'
+TIME_ZONE = 'Europe/Oslo'
 
 USE_I18N = True
 
 USE_TZ = True
 
-
-
-# Default primary key field type
+#* Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
