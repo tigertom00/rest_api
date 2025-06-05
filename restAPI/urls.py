@@ -1,6 +1,6 @@
 from django.urls import path, include
 from rest_framework import routers
-from .views import index, UsersViewSet, BlacklistTokenView, CreateUsersViewSet
+from .views import index, clerk_webhook, UsersViewSet, BlacklistTokenView, CreateUsersViewSet
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 from rest_framework_simplejwt.views import (
     TokenObtainPairView,
@@ -24,6 +24,6 @@ urlpatterns = [
     path('token/blacklist/', BlacklistTokenView.as_view(), name='blacklist_token'),
     path('schema/', SpectacularAPIView.as_view(), name='schema'),
     path('schema/swagger-ui/', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'),
-    
+    path('clerk-webhook/', clerk_webhook, name='clerk_webhook'),
 ]
 urlpatterns += router.urls

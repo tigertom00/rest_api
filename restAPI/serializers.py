@@ -11,17 +11,16 @@ Users = get_user_model()
 
 
 #* Users Serializer
-
 class UsersSerializer(serializers.ModelSerializer):
     class Meta:
         model = Users
-        fields = ('id', 'username', 'password', 'display_name', 'email', 'first_name', 'last_name', 'date_of_birth', 'address',
-                  'city', 'country', 'website', 'phone', 'profile_picture', 'date_joined', 'last_login', 'dark_mode')
+        fields = (
+            'id', 'email', 'display_name', 'first_name', 'last_name', 'date_of_birth', 'address',
+            'city', 'country', 'website', 'phone', 'profile_picture', 'date_joined', 'last_login', 'dark_mode'
+        )
         extra_kwargs = {
-            'password': {'write_only': True, 'min_length': 8},
             'email': {'required': True, 'allow_blank': False}
         }
-    
         # fields = '__all__'
         # queryset = Users.objects.all()
 
@@ -34,31 +33,21 @@ class CreateUsersSerializer(serializers.ModelSerializer):
     )
     password1 = serializers.CharField(write_only=True, min_length=8)
     password2 = serializers.CharField(write_only=True, min_length=8)
+
     class Meta:
         model = Users
         fields = ('email', 'password1', 'password2',)
-        extra_kwargs = {
-            'password': {'write_only': True, 'min_length': 8},
-            'email': {'required': True, 'allow_blank': False}
-        }
+
     def validate(self, data):
         if data['password1'] != data['password2']:
             raise serializers.ValidationError("Passwords do not match")
         validate_password(data['password1'])
         return data
-    
+
     def create(self, validated_data):
         validated_data.pop('password2')
         email = validated_data['email'].lower()
-        base_username = email.split('@')[0]
-        username = base_username
-
-        # Ensure unique username
-        while Users.objects.filter(username=username).exists():
-            username = f"{base_username}{random.randint(1000, 9999)}"
-
         user = Users.objects.create_user(
-            username=username,
             email=email,
             password=validated_data['password1'],
         )

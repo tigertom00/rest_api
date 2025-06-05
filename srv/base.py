@@ -80,6 +80,8 @@ SIMPLE_JWT = {
 
 # Clerk settings
 CLERK_JWT_AUDIENCE = "https://upright-beagle-49.clerk.accounts.dev"  # e.g. "clerk.abc123"
+CLERK_WEBHOOK_SECRET = "your_clerk_webhook_secret" #// Replace with your actual Clerk webhook secret
+# SECURITY WARNING: keep the secret key used in production secret!
 
 # CORS settings to allow your frontend to communicate with the backend
 CORS_ALLOW_ALL_ORIGINS = True
