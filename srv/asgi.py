@@ -11,6 +11,13 @@ import os
 
 from django.core.asgi import get_asgi_application
 
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'srv.prod')
+settings_module = 'srv.dev'
+        # Check environment variable for DEBUG
+debug = os.environ.get('DJANGO_DEBUG', 'True') == 'True'
+if not debug:
+   settings_module = 'srv.prod'
+
+
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', settings_module)
 
 application = get_asgi_application()

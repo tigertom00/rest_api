@@ -6,7 +6,14 @@ import sys
 
 def main():
     """Run administrative tasks."""
-    os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'srv.prod')
+    settings_module = 'srv.dev'
+        # Check environment variable for DEBUG
+    debug = os.environ.get('DJANGO_DEBUG', 'True') == 'True'
+    if not debug:
+        settings_module = 'srv.prod'
+
+    os.environ.setdefault('DJANGO_SETTINGS_MODULE', settings_module)
+
     try:
         from django.core.management import execute_from_command_line
     except ImportError as exc:
