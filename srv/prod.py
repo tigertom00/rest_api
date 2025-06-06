@@ -1,5 +1,8 @@
 from .base import *
+from dotenv import load_dotenv
 
+
+load_dotenv(BASE_DIR / '.env')
 
 ALLOWED_HOSTS = ("api.nxfs.no", "10.20.30.203", "127.0.0.1")
 

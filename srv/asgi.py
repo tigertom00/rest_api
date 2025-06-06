@@ -8,16 +8,9 @@ https://docs.djangoproject.com/en/5.2/howto/deployment/asgi/
 """
 
 import os
-
 from django.core.asgi import get_asgi_application
 
-settings_module = 'srv.dev'
-        # Check environment variable for DEBUG
-debug = os.environ.get('DJANGO_DEBUG', 'True') == 'True'
-if not debug:
-   settings_module = 'srv.prod'
 
-
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', settings_module)
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'srv.prod')
 
 application = get_asgi_application()

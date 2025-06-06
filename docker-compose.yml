@@ -6,17 +6,17 @@ services:
     volumes:
       - /srv/docker/restapi/static:/app/static
       - /srv/docker/restapi/media:/app/media
-      - /srv/docker/resrtapi/.env:/app/.env:ro
+      - /srv/docker/restapi/.env:/app/.env:ro
     expose:
-      - "8555"
+      - "8000"
 
   nginx:
     image: nginx:latest
     ports:
-      - "87:87"
+      - "8080:80"
     volumes:
-      - /srv/docker/restapi/static:/srv/django/static
-      - /srv/docker/restapi/media:/srv/django/media
+      - /srv/docker/restapi/static:/srv/docker/restapi/static
+      - /srv/docker/restapi/media:/srv/docker/restapi/static
       - /srv/docker/restapi/nginx.conf:/etc/nginx/conf.d/default.conf:ro
     depends_on:
       - django

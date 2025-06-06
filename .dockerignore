@@ -49,6 +49,7 @@ coverage/
 
 # Docker-specific files
 Dockerfile
+Dockerfilenew
 docker-compose.yml
 docker-compose.yaml
 *.dockerignore

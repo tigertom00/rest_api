@@ -6,7 +6,7 @@ from datetime import timedelta
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-DUBUG = True #! os.environ.get('DJANGO_DEBUG')
+DEBUG = False
 
 
 INSTALLED_APPS = [
@@ -28,7 +28,7 @@ INSTALLED_APPS = [
     'restAPI'
 ]
 
-SECRET_KEY = os.getenv('SECRET_KEY')
+SECRET_KEY = os.environ.get('SECRET_KEY')
 
 #* User model
 AUTH_USER_MODEL = 'restAPI.CustomUser'
@@ -42,6 +42,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'restAPI.restrictpaths.RestrictPathsMiddleware', # Custom middleware for restricted paths
 ]
 
 ROOT_URLCONF = 'srv.urls'
@@ -112,14 +113,21 @@ CLERK_WEBHOOK_SECRET = os.getenv('CLERK_WEBHOOK_KEY')
 #* CORS settings to allow your frontend to communicate with the backend
 CORS_ALLOW_ALL_ORIGINS = False
 CORS_ALLOWED_ORIGINS = [
-    'http://localhost:19006',  # Expo default port
-    'http://127.0.0.1:8555',   # Django backend
-    'http://10.20.30.203:8555',  # Add your frontend URL here
-    'http://api.nxfs.no:8555',
+    'http://localhost:8080',  # Expo default port
+    'http://127.0.0.1:8080',   # Django backend
+    'http://10.20.30.203:8080',  # Add your frontend URL here
+    'http://api.nxfs.no:80',
+    'https://api.nxfs.no:443',
 ]
 CORS_ALLOW_HEADERS = [
   
 ]
+CSRF_TRUSTED_ORIGINS = [
+    "http://10.20.30.203:8080",
+    "https://api.nxfs.no",
+]
+
+#SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
 #* Spec settings for drf_spectacular
 SPECTACULAR_SETTINGS = {

@@ -30,7 +30,7 @@ ENV SECRET_KEY=dummykey
 RUN python manage.py collectstatic --noinput
 
 # Expose the Django port
-EXPOSE 8555
+EXPOSE 8000
 
 # Run Django’s development server
-CMD ["gunicorn", "srv.wsgi:application", "--bind", "0.0.0.0:8555"]
+CMD ["gunicorn", "srv.wsgi:application", "--bind", "0.0.0.0:8000"]
