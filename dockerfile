@@ -25,6 +25,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy the Django project to the container
 COPY . /app/
 
+ENV SECRET_KEY=dummykey
+
 RUN python manage.py collectstatic --noinput
 
 # Expose the Django port
