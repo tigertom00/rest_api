@@ -7,15 +7,13 @@ load_dotenv(BASE_DIR / '.env')
 #SECRET_KEY = os.environ.get("SECRET_KEY")
 
 
-DEBUG = True
-
 #ALLOWED_HOSTS = os.environ.get("DJANGO_ALLOWED_HOSTS","127.0.0.1").split(",")
 ALLOWED_HOSTS =  ['192.168.106.126', 'localhost', '127.0.0.1', '10.20.30.202', 'api.nxfs.no', '10.20.30.203']
 
 
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
-
+"""
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
@@ -33,4 +31,3 @@ DATABASES = {
         'NAME': BASE_DIR / 'db.sqlite3',
     }
 }
-"""
