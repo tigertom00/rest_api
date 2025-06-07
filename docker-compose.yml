@@ -3,20 +3,25 @@ version: '3'
 services:
   django:
     image: tigertom/rest_api
+    container_name: restapi_django
     volumes:
-      - /srv/docker/restapi/static:/app/static
-      - /srv/docker/restapi/media:/app/media
-      - /srv/docker/restapi/.env:/app/.env:ro
+      - /srv/docker/restAPI:/app
+      - /srv/docker/restAPI/static:/app/static
+      - /srv/docker/restAPI/media:/app/media
+      - /srv/docker/restAPI/.env:/app/.env:ro
     expose:
       - "8000"
+    restart: unless-stopped
 
   nginx:
     image: nginx:latest
+    container_name: restapi_nginx
     ports:
       - "8080:80"
     volumes:
-      - /srv/docker/restapi/static:/srv/docker/restapi/static
-      - /srv/docker/restapi/media:/srv/docker/restapi/static
-      - /srv/docker/restapi/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - /srv/docker/restAPI/static:/srv/docker/restAPI/static
+      - /srv/docker/restAPI/media:/srv/docker/restAPI/media
+      - /srv/docker/restAPI/nginx.conf:/etc/nginx/conf.d/default.conf:ro
     depends_on:
       - django
+    restart: unless-stopped

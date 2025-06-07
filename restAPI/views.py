@@ -53,8 +53,8 @@ def clerk_webhook(request):
     clerk_profile_image_url = data.get("profile_image_url")
     two_factor_enabled = data.get("two_factor_enabled", False)
     has_image = bool(clerk_profile_image_url)
-    first_name = data.get("first_name", "")
-    last_name = data.get("last_name", "")
+    first_name = data.get("first_name") or ""
+    last_name = data.get("last_name") or ""
     phone_numbers = data.get("phone_numbers", [])
     email_list = data.get("email_addresses", [])
     clerk_updated_at = data.get("updated_at")

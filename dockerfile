@@ -1,36 +1,56 @@
-# Use the official Python runtime image
-FROM python:3.13  
+# Use a slim Python base image
+FROM python:3.13.0-slim
 
-# Create the app directory
-RUN mkdir /app
+# Set metadata
+LABEL maintainer="Tiger <nxfs.xyz@gmail.com>"
+LABEL version="1.0"
+LABEL description="Django REST API"
 
-# Set the working directory inside the container
+# Set environment variables
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+
+# Install MySQL dependencies and clean up
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+    gcc \
+    libmariadb-dev \
+    pkg-config \
+    curl && \
+    rm -rf /var/lib/apt/lists/*
+
+# Install curl for healthcheck
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends curl && \
+    rm -rf /var/lib/apt/lists/*
+
+# Create non-root user and app directory
+RUN useradd -m -u 1000 tiger && \
+    mkdir -p /app && \
+    chown tiger:tiger /app
+
+# Set working directory
 WORKDIR /app
 
-# Set environment variables 
-# Prevents Python from writing pyc files to disk
-ENV PYTHONDONTWRITEBYTECODE=1
-#Prevents Python from buffering stdout and stderr
-ENV PYTHONUNBUFFERED=1 
+# Upgrade pip and install dependencies
+COPY requirements.txt .
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt
 
-# Upgrade pip
-RUN pip install --upgrade pip 
-
-# Copy the Django project  and install dependencies
-COPY requirements.txt  /app/
-
-# run this command to install all dependencies 
-RUN pip install --no-cache-dir -r requirements.txt
-
-# Copy the Django project to the container
+# Copy project files
 COPY . /app/
 
-ENV SECRET_KEY=dummykey
+RUN chown -R tiger:tiger /app
 
-RUN python manage.py collectstatic --noinput
+# Switch to non-root user
+USER tiger
 
-# Expose the Django port
+# Expose port (use 8555 if needed, based on your earlier question)
 EXPOSE 8000
 
-# Run Django’s development server
-CMD ["gunicorn", "srv.wsgi:application", "--bind", "0.0.0.0:8000"]
+# Healthcheck
+HEALTHCHECK --interval=30s --timeout=3s \
+    CMD curl -f http://localhost:8000/ || exit 1
+
+# Run Gunicorn
+CMD ["gunicorn", "srv.wsgi:application", "--bind", "0.0.0.0:8000", "--workers", "3", "--threads", "2"]
