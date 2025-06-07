@@ -1,12 +1,16 @@
 from pathlib import Path
 import os
 from datetime import timedelta
+from dotenv import load_dotenv
+
+
+
 
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
-
-DEBUG = False
+load_dotenv(BASE_DIR / '.env')
+DEBUG = True
 
 
 INSTALLED_APPS = [
@@ -28,7 +32,8 @@ INSTALLED_APPS = [
     'restAPI'
 ]
 
-SECRET_KEY = os.environ.get('SECRET_KEY')
+SECRET_KEY = os.getenv('SECRET_KEY')
+
 
 #* User model
 AUTH_USER_MODEL = 'restAPI.CustomUser'
@@ -42,7 +47,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    'restAPI.restrictpaths.RestrictPathsMiddleware', # Custom middleware for restricted paths
+    'restAPI.utils.restrictpaths.RestrictPathsMiddleware', # Custom middleware for restricted paths
 ]
 
 ROOT_URLCONF = 'srv.urls'
@@ -88,7 +93,7 @@ AUTH_PASSWORD_VALIDATORS = [
 #* rest framework settings
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
-        'restAPI.clerk.ClerkAuthentication',  # Custom authentication class for Clerk
+        'restAPI.utils.clerk.ClerkAuthentication',  # Custom authentication class for Clerk
         'rest_framework_simplejwt.authentication.JWTAuthentication', # Simple JWT authentication
     ],
     'DEFAULT_PERMISSION_CLASSES': [
@@ -106,8 +111,9 @@ SIMPLE_JWT = {
 }
 
 #* Clerk settings
-CLERK_JWT_AUDIENCE = os.getenv('CLERK_URL')  # e.g. "clerk.abc123"
-CLERK_WEBHOOK_SECRET = os.getenv('CLERK_WEBHOOK_KEY') 
+CLERK_URL = os.getenv('CLERK_URL')
+CLERK_SECRET_KEY = os.getenv('CLERK_SECRET_KEY')
+CLERK_WEBHOOK_KEY = os.getenv('CLERK_WEBHOOK_KEY')
 # SECURITY WARNING: keep the secret key used in production secret!
 
 #* CORS settings to allow your frontend to communicate with the backend

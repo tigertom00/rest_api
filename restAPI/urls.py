@@ -24,6 +24,6 @@ urlpatterns = [
     path('token/blacklist/', BlacklistTokenView.as_view(), name='blacklist_token'),
     path('schema/', SpectacularAPIView.as_view(), name='schema'),
     path('schema/swagger-ui/', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'),
-    path('clerk-webhook/', clerk_webhook, name='clerk_webhook'),
+    path('clerk/webhook/', clerk_webhook, name='clerk_webhook'),
 ]
 urlpatterns += router.urls

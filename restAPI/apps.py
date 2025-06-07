@@ -8,4 +8,5 @@ class RestapiConfig(AppConfig):
     def ready(self):
 
         from .views import ClerkAuthenticationScheme
+        # import restAPI.utils.signals #* For sending django created users to Clerk
 

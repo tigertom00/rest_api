@@ -4,14 +4,9 @@ import os
 from django.conf import settings
 from rest_framework import authentication, exceptions
 from django.contrib.auth import get_user_model
-from dotenv import load_dotenv
-load_dotenv(settings.BASE_DIR / '.env')
 
 
-
-
-CLERK_JWT_ISSUER = os.getenv('CLERK_URL')
-CLERK_JWT_PUBLIC_KEY_URL = f"{CLERK_JWT_ISSUER}/.well-known/jwks.json"
+CLERK_JWT_PUBLIC_KEY_URL = f"{settings.CLERK_URL}/.well-known/jwks.json"
 
 class ClerkAuthentication(authentication.BaseAuthentication):
     def authenticate(self, request):
@@ -29,7 +24,7 @@ class ClerkAuthentication(authentication.BaseAuthentication):
             public_keys = {key['kid']: jwt.algorithms.RSAAlgorithm.from_jwk(key) for key in jwks['keys']}
             unverified_header = jwt.get_unverified_header(token)
             key = public_keys[unverified_header['kid']]
-            payload = jwt.decode(token, key=key, algorithms=['RS256'], audience=settings.CLERK_JWT_AUDIENCE)
+            payload = jwt.decode(token, key=key, algorithms=['RS256'], audience=settings.CLERK_URL)
         except Exception:
             raise exceptions.AuthenticationFailed('Invalid Clerk token')
 
