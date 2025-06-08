@@ -3,37 +3,38 @@ import os
 from datetime import timedelta
 from dotenv import load_dotenv
 
-# Build paths inside the project like this: BASE_DIR / 'subdir'.
+#* Load directories and environment variables
 BASE_DIR = Path(__file__).resolve().parent.parent
+ROOT_URLCONF = 'srv.urls'
+WSGI_APPLICATION = 'srv.wsgi.application'
+AUTH_USER_MODEL = 'restAPI.CustomUser'
 load_dotenv(BASE_DIR / '.env')
+
+#* Security settings
+SECRET_KEY = os.getenv('SECRET_KEY')
 DEBUG = False
 
-
+#* Applications
 INSTALLED_APPS = [
-    'django.contrib.admin',
-    'django.contrib.auth',
-    'django.contrib.contenttypes',
-    'django.contrib.sessions',
-    'django.contrib.messages',
-    'django.contrib.staticfiles',
+    'django.contrib.admin', # Admin interface
+    'django.contrib.auth', # Authentication framework
+    'django.contrib.contenttypes', # Content types framework
+    'django.contrib.sessions', # Session management
+    'django.contrib.messages', # Message framework for user notifications
+    'django.contrib.staticfiles', # Static files (CSS, JavaScript, Images)
     #'django.contrib.sites',
-    # 3rd party apps
-    'rest_framework',
-    'rest_framework.authtoken',
-    'rest_framework_simplejwt',
-    'rest_framework_simplejwt.token_blacklist',
-    'corsheaders',  
-    'drf_spectacular',  # Core API for common functionality
-    # Local apps
-    'restAPI'
+    #* 3rd party apps
+    'rest_framework', # Django REST Framework for building APIs
+    'rest_framework.authtoken', # Token authentication for Django REST Framework
+    'rest_framework_simplejwt', # Simple JWT for token authentication
+    'rest_framework_simplejwt.token_blacklist', # Token blacklist for JWT
+    'corsheaders',  # CORS headers for cross-origin requests
+    'drf_spectacular',  # API Schema generation
+    #* Local apps
+    'restAPI' # Your custom app for the API with User models and middleware
 ]
 
-SECRET_KEY = os.getenv('SECRET_KEY')
-
-
-#* User model
-AUTH_USER_MODEL = 'restAPI.CustomUser'
-
+#* Middleware
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
@@ -46,8 +47,8 @@ MIDDLEWARE = [
     'restAPI.utils.restrictpaths.RestrictPathsMiddleware', # Custom middleware for restricted paths
 ]
 
-ROOT_URLCONF = 'srv.urls'
 
+#* Template configuration
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
@@ -65,7 +66,7 @@ TEMPLATES = [
     },
 ]
 
-WSGI_APPLICATION = 'srv.wsgi.application'
+
 
 
 #* Password validation
@@ -110,14 +111,16 @@ SIMPLE_JWT = {
 CLERK_URL = os.getenv('CLERK_URL')
 CLERK_SECRET_KEY = os.getenv('CLERK_SECRET_KEY')
 CLERK_WEBHOOK_KEY = os.getenv('CLERK_WEBHOOK_KEY')
-# SECURITY WARNING: keep the secret key used in production secret!
+
+#* Host settings
+ALLOWED_HOSTS = ("api.nxfs.no", "10.20.30.203", "127.0.0.1", "localhost")
 
 #* CORS settings to allow your frontend to communicate with the backend
 CORS_ALLOW_ALL_ORIGINS = False
 CORS_ALLOWED_ORIGINS = [
     'http://localhost:8080',  # Expo default port
     'http://127.0.0.1:8080',   # Django backend
-    'http://10.20.30.203:8080',  # Add your frontend URL here
+    'http://10.20.30.203:8080',
     'http://api.nxfs.no:80',
     'https://api.nxfs.no:443',
 ]
@@ -126,7 +129,7 @@ CORS_ALLOW_HEADERS = [
 ]
 CSRF_TRUSTED_ORIGINS = [
     "http://10.20.30.203:8080",
-    "https://api.nxfs.no",
+    "https://api.nxfs.no:443",
 ]
 
 #SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
@@ -137,6 +140,18 @@ SPECTACULAR_SETTINGS = {
     'DESCRIPTION': 'API for all things...',
     'VERSION': '0.0.1',
     'SERVE_INCLUDE_SCHEMA': True,
+}
+
+#* Database
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.mysql',
+        'NAME': os.getenv('DB_NAME'),
+        'USER': os.getenv('DB_USER'),
+        'PASSWORD': os.getenv('DB_PASSWORD'),
+        'HOST': os.getenv('DB_HOST'),
+        'PORT': os.getenv('DB_PORT'),
+    }
 }
 
 #* Static files (CSS, JavaScript, Images)
