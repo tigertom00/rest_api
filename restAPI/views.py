@@ -12,6 +12,8 @@ from drf_spectacular.extensions import OpenApiAuthenticationExtension
 from svix.webhooks import Webhook, WebhookVerificationError
 from .models import UserEmail, UserPhone
 from datetime import datetime, timezone
+from webdav3.client import Client
+from caldav import DAVClient
 
 User = get_user_model()
 
@@ -185,3 +187,57 @@ class BlacklistTokenView(APIView):
             except Exception:
                 return Response(status=status.HTTP_400_BAD_REQUEST)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+#* Nextcloud
+
+#* Fetch Nextcloud files
+def fetch_nextcloud_files(request):
+    options = {
+        'webdav_hostname': settings.NEXTCLOUD_WEBDAV_URL,
+        'webdav_login': settings.NEXTCLOUD_USERNAME,
+        'webdav_password': settings.NEXTCLOUD_APP_PASSWORD  # Use app password for better security
+    }
+    client = Client(options)
+    files = client.list()
+    return HttpResponse(f"Files: {files}")
+
+#* Fetch Nextcloud contacts
+def fetch_contacts(request):
+    client = DAVClient(
+        url = settings.NEXTCLOUD_CONTACTS_URL,
+        username = settings.NEXTCLOUD_USERNAME,
+        password = settings.NEXTCLOUD_PASSWORD
+    )
+    principal = client.principal()
+    addressbook = principal.addressbook()
+    contacts = addressbook.get_all()
+    return HttpResponse(f"Contacts: {[c.name for c in contacts]}")
+
+#* Fetch Nextcloud calendar events
+def calendar(request):
+    client = DAVClient(
+        url=settings.NEXTCLOUD_WEBDAV_URL,
+        username=settings.NEXTCLOUD_USERNAME,
+        password=settings.NEXTCLOUD_PASSWORD
+    )
+    principal = client.principal()
+    calendar = principal.calendar()
+    events = calendar.get_events()
+    return HttpResponse(f"Events: {[event.name for event in events]}")
+
+#* Upload files to Nextcloud
+def upload_file(request):
+    options = {
+        'webdav_hostname': settings.NEXTCLOUD_WEBDAV_URL,
+        'webdav_login': settings.NEXTCLOUD_USERNAME,
+        'webdav_password': settings.NEXTCLOUD_APP_PASSWORD 
+    }
+    client = Client(options)
+    local_file = "/tmp/sample.txt"  # Replace with your file path
+    remote_path = "uploads/sample.txt"  # Path in Nextcloud
+    try:
+        client.upload_sync(remote_path=remote_path, local_path=local_file)
+        return HttpResponse(f"Uploaded {local_file} to Nextcloud")
+    except Exception as e:
+        return HttpResponse(f"Error: {str(e)}", status=500)
+

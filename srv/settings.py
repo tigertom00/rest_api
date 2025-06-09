@@ -12,7 +12,7 @@ load_dotenv(BASE_DIR / '.env')
 
 #* Security settings
 SECRET_KEY = os.getenv('SECRET_KEY')
-DEBUG = False
+DEBUG = True
 
 #* Applications
 INSTALLED_APPS = [
@@ -29,9 +29,12 @@ INSTALLED_APPS = [
     'rest_framework_simplejwt', # Simple JWT for token authentication
     'rest_framework_simplejwt.token_blacklist', # Token blacklist for JWT
     'corsheaders',  # CORS headers for cross-origin requests
-    'drf_spectacular',  # API Schema generation
+    'drf_spectacular', # DRF Spectacular for OpenAPI schema generation
+    'channels',  # Channels for WebSockets and async support (push notifications, etc.)
     #* Local apps
-    'restAPI' # Your custom app for the API with User models and middleware
+    'restAPI', # Your custom app for the API with User models and middleware
+    #'app.jobb',
+    
 ]
 
 #* Middleware
@@ -45,6 +48,7 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'restAPI.utils.restrictpaths.RestrictPathsMiddleware', # Custom middleware for restricted paths
+    
 ]
 
 
@@ -134,6 +138,14 @@ CSRF_TRUSTED_ORIGINS = [
 
 #SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
+#* Nextcloud settings
+NEXTCLOUD_WEBDAV_URL = os.getenv('NEXTCLOUD_WEBDAV_URL')
+NEXTCLOUD_CONTACTS_URL = os.getenv('NEXTCLOUD_CONTACTS_URL')
+NEXTCLOUD_USERNAME = os.getenv('NEXTCLOUD_USERNAME')
+NEXTCLOUD_PASSWORD = os.getenv('NEXTCLOUD_PASSWORD')
+NEXTCLOUD_APP_PASSWORD = os.getenv('NEXTCLOUD_APP_PASSWORD')
+
+
 #* Spec settings for drf_spectacular
 SPECTACULAR_SETTINGS = {
     'TITLE': 'DjangoAPI',
@@ -141,6 +153,18 @@ SPECTACULAR_SETTINGS = {
     'VERSION': '0.0.1',
     'SERVE_INCLUDE_SCHEMA': True,
 }
+
+#* Channels settings for WebSockets (push notifications, etc.)
+ASGI_APPLICATION = 'srv.asgi.application'
+CHANNEL_LAYERS = {
+    'default': {
+        'BACKEND': 'channels.layers.InMemoryChannelLayer',
+    },
+}
+#* Gotify settings for push notifications
+GOTIFY_URL = os.getenv('GOTIFY_URL')  # Your Gotify URL
+GOTIFY_TOKEN = os.getenv('GOTIFY_TOKEN')  # Your Gotify application token
+GOTIFY_ACCESS_TOKEN = os.getenv('GOTIFY_ACCESS_TOKEN')  # Access token for Gotify
 
 #* Database
 DATABASES = {
@@ -186,3 +210,17 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+#* Debug mode settings
+if DEBUG:
+
+    print("Running in DEBUG mode!")
+
+    # Remove RestrictPathsMiddleware if in DEBUG mode
+    MIDDLEWARE = [
+        mw for mw in MIDDLEWARE
+        if mw != 'restAPI.utils.restrictpaths.RestrictPathsMiddleware'
+    ]
+
+
+

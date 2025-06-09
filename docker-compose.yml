@@ -12,6 +12,8 @@ services:
     expose:
       - "8000"
     restart: unless-stopped
+    networks:
+      - main-network
 
   nginx:
     image: nginx:latest
@@ -25,3 +27,9 @@ services:
     depends_on:
       - django
     restart: unless-stopped
+    networks:
+      - main-network
+networks:
+  main-network:
+    external: true
+    name: main-network
