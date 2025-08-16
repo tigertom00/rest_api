@@ -34,7 +34,8 @@ INSTALLED_APPS = [
     'channels',  # Channels for WebSockets and async support (push notifications, etc.)
     #* Local apps
     'restAPI', # Your custom app for the API with User models and middleware
-    'app.tasks'
+    'app.tasks',
+    'app.todo',
 
 ]
 
@@ -95,7 +96,7 @@ AUTH_PASSWORD_VALIDATORS = [
 #* rest framework settings
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
-        'restAPI.utils.clerk_task.ClerkAuthentication',  # Custom authentication class for Clerk
+        'restAPI.utils.clerk.ClerkAuthentication',  # Custom authentication class for Clerk
         'rest_framework_simplejwt.authentication.JWTAuthentication', # Simple JWT authentication
     ],
     'DEFAULT_PERMISSION_CLASSES': [
@@ -116,7 +117,6 @@ SIMPLE_JWT = {
 CLERK_URL = os.getenv('CLERK_URL')
 CLERK_SECRET_KEY = os.getenv('CLERK_SECRET_KEY')
 CLERK_WEBHOOK_KEY = os.getenv('CLERK_WEBHOOK_KEY')
-CLERK_PUBLIC_KEY = os.getenv('CLERK_PUBLIC_KEY')
 
 #* Host settings
 ALLOWED_HOSTS = ("api.nxfs.no", "10.20.30.203", "127.0.0.1", "localhost")
@@ -156,6 +156,30 @@ SPECTACULAR_SETTINGS = {
     'SERVE_INCLUDE_SCHEMA': True,
 }
 
+# Development machine settings Database setup
+DEV_IP = "10.20.30.202"
+current_ip = socket.gethostbyname(socket.gethostname())
+
+if current_ip == DEV_IP:
+    print("Running on development machine, using SQLite DB.")
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / 'db.sqlite3',
+        }
+    }
+else:
+    print("Running on production server, using MySQL DB.")
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.mysql',
+            'NAME': os.getenv('DB_NAME'),
+            'USER': os.getenv('DB_USER'),
+            'PASSWORD': os.getenv('DB_PASSWORD'),
+            'HOST': os.getenv('DB_HOST'),
+            'PORT': os.getenv('DB_PORT'),
+        }
+    }
 
 
 #* Channels settings for WebSockets (push notifications, etc.)
@@ -203,32 +227,6 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
-# Development machine settings Database setup
-DEV_IP = "10.20.30.202"
-current_ip = socket.gethostbyname(socket.gethostname())
-
-if current_ip == DEV_IP:
-    print("Running on development machine, using SQLite DB.")
-    DATABASES = {
-        'default': {
-            'ENGINE': 'django.db.backends.sqlite3',
-            'NAME': BASE_DIR / 'db.sqlite3',
-        }
-    }
-else:
-    print("Running on production, using MySQL DB.")
-    DATABASES = {
-        'default': {
-            'ENGINE': 'django.db.backends.mysql',
-            'NAME': os.getenv('DB_NAME'),
-            'USER': os.getenv('DB_USER'),
-            'PASSWORD': os.getenv('DB_PASSWORD'),
-            'HOST': os.getenv('DB_HOST'),
-            'PORT': os.getenv('DB_PORT'),
-        }
-    }
-
-
 
 #* Debug mode settings
 if DEBUG:

@@ -9,7 +9,7 @@ class Todo(models.Model):
     completed = models.BooleanField(default=False)
     urgent = models.BooleanField(default=False)
     image = models.ImageField(upload_to='todo_images/', blank=True, null=True)
-    created_by = models.ForeignKey(User, on_delete=models.DO_NOTHING, related_name='todos')
+    created_by = models.ForeignKey(User, on_delete=models.CASCADE, related_name='todos')
     created_at = models.DateTimeField(auto_now_add=True)
     completed_at = models.DateTimeField(blank=True, null=True)
 
