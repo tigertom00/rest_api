@@ -14,7 +14,8 @@ router.register('user', views.UsersViewSet, 'users')
 
 
 urlpatterns = [
-    path('', views.index, name='index'),
+    #path('', views.index, name='index'),
+    path("", views.landing_page, name="landing"),
     path('register/' , views.CreateUsersViewSet.as_view(), name='register'),
     #path('dj-rest-auth/', include('dj_rest_auth.urls')),
     #path('dj-rest-auth/registration/', include('dj_rest_auth.registration.urls')),

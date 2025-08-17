@@ -14,6 +14,7 @@ from .models import UserEmail, UserPhone
 from datetime import datetime, timezone
 from webdav3.client import Client
 from caldav import DAVClient
+from django.shortcuts import render
 
 User = get_user_model()
 
@@ -241,3 +242,8 @@ def upload_file(request):
     except Exception as e:
         return HttpResponse(f"Error: {str(e)}", status=500)
 
+
+
+# Landing page view
+def landing_page(request):
+    return render(request, "landing.html")

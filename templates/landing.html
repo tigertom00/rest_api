@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>NXFS API</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      // Enable dark mode based on system preference
+      if (
+        localStorage.theme === 'dark' ||
+        (!('theme' in localStorage) &&
+          window.matchMedia('(prefers-color-scheme: dark)').matches)
+      ) {
+        document.documentElement.classList.add('dark');
+      } else {
+        document.documentElement.classList.remove('dark');
+      }
+    </script>
+  </head>
+  <body
+    class="bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 font-sans transition-colors"
+  >
+    <div class="min-h-screen flex flex-col items-center justify-center px-6">
+      <!-- Header -->
+      <h1
+        class="text-5xl font-extrabold mb-4 text-center bg-gradient-to-r from-blue-500 to-indigo-600 bg-clip-text text-transparent"
+      >
+        NXFS API
+      </h1>
+      <p
+        class="text-lg text-gray-600 dark:text-gray-400 mb-10 text-center max-w-xl"
+      >
+        Welcome to the NXFS REST API. Use the links below to access the API
+        documentation and administrative interface.
+      </p>
+
+      <!-- Links -->
+      <div class="flex flex-col sm:flex-row gap-6">
+        <a
+          href="/admin"
+          class="px-6 py-3 rounded-2xl shadow-md bg-blue-600 text-white font-semibold hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 transition"
+        >
+          Admin Panel
+        </a>
+        <a
+          href="/schema/swagger-ui/"
+          class="px-6 py-3 rounded-2xl shadow-md bg-indigo-600 text-white font-semibold hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600 transition"
+        >
+          Swagger UI
+        </a>
+        <a
+          href="/schema/"
+          class="px-6 py-3 rounded-2xl shadow-md bg-gray-700 text-white font-semibold hover:bg-gray-800 dark:bg-gray-600 dark:hover:bg-gray-700 transition"
+        >
+          OpenAPI Schema (JSON)
+        </a>
+      </div>
+
+      <!-- Footer -->
+      <footer class="mt-16 text-sm text-gray-500 dark:text-gray-400">
+        ©
+        <script>
+          document.write(new Date().getFullYear());
+        </script>
+        NXFS. All rights reserved.
+      </footer>
+    </div>
+  </body>
+</html>
