@@ -131,8 +131,9 @@ def clerk_webhook(request):
                 email=email_addr,
                 defaults={
                     "is_primary": email_data.get("primary", False),
-                    "is_verified": email_data.get("verification", {}).get("status") == "verified"
+                    "is_verified": (email_data.get("verification") or {}).get("status") == "verified"
                 }
+
             )
 
     elif event_type == "user.deleted":
@@ -167,7 +168,7 @@ class UsersViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
 
-        return self.queryset.filter(username=self.request.user)
+        return self.queryset.filter(id=self.request.user.id)
 
     def perform_create(self, serializer):
         serializer.save(username=self.request.user)

@@ -26,7 +26,7 @@ class ClerkAuthentication(authentication.BaseAuthentication):
             key = public_keys[unverified_header['kid']]
             payload = jwt.decode(token, key=key, algorithms=['RS256'], audience=settings.CLERK_URL)
         except Exception:
-            raise exceptions.AuthenticationFailed('Invalid Clerk token')
+            return None
 
         # Get or create user
         email = payload.get('email')
