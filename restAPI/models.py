@@ -5,17 +5,14 @@ import os
 
 # Users
 class CustomUserManager(UserManager):
-    def create_user(self, email, password=None, **extra_fields):
+    def create_user(self, email, password=None, username=None, **extra_fields):
         if not email:
             raise ValueError('The Email field must be set')
         email = self.normalize_email(email)
-        # Set username to the part before '@' if not provided
-        if not extra_fields.get('username'):
-            extra_fields['username'] = email.split('@')[0]
-        # Set display_name to username.capitalize() if not provided
-        if not extra_fields.get('display_name'):
-            extra_fields['display_name'] = extra_fields['username'].capitalize()
-        user = self.model(email=email, **extra_fields)
+        if not username:
+            username = email.split('@')[0]
+        extra_fields['username'] = username
+        user = self.model(email=email, username=username, **extra_fields)
         user.set_password(password)
         user.save(using=self._db)
         return user

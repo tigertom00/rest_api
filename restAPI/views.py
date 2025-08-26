@@ -19,7 +19,7 @@ from django.shortcuts import render
 User = get_user_model()
 
 class ClerkAuthenticationScheme(OpenApiAuthenticationExtension):
-    target_class = 'restAPI.clerk.ClerkAuthentication'  # full import path
+    target_class = 'restAPI.utils.clerk.ClerkAuthentication'  # full import path
     name = 'ClerkAuth'
 
     def get_security_definition(self, auto_schema):

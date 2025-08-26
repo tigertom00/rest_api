@@ -31,12 +31,13 @@ class CreateUsersSerializer(serializers.ModelSerializer):
         required=True,
         validators=[UniqueValidator(queryset=Users.objects.all(), message="A user with that email already exists.")]
     )
+    username = serializers.CharField(required=False)
     password1 = serializers.CharField(write_only=True, min_length=8)
     password2 = serializers.CharField(write_only=True, min_length=8)
 
     class Meta:
         model = Users
-        fields = ('email', 'password1', 'password2',)
+        fields = ('email', 'username', 'password1', 'password2',)
 
     def validate(self, data):
         if data['password1'] != data['password2']:
@@ -47,9 +48,18 @@ class CreateUsersSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         validated_data.pop('password2')
         email = validated_data['email'].lower()
+        if 'username' not in validated_data or not validated_data['username']:
+            username_base = email.split('@')[0]
+            username = username_base
+            while Users.objects.filter(username=username).exists():
+                username = f"{username_base}{random.randint(1, 10000)}"
+            validated_data['username'] = username
+        else:
+            validated_data['username'] = validated_data['username']
         user = Users.objects.create_user(
             email=email,
             password=validated_data['password1'],
+            username=validated_data['username']
         )
         return user
     
