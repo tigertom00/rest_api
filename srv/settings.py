@@ -119,17 +119,16 @@ CLERK_SECRET_KEY = os.getenv('CLERK_SECRET_KEY')
 CLERK_WEBHOOK_KEY = os.getenv('CLERK_WEBHOOK_KEY')
 
 #* Host settings
-ALLOWED_HOSTS = ("api.nxfs.no", "10.20.30.203", "127.0.0.1", "localhost")
+ALLOWED_HOSTS = ("api.nxfs.no", "10.20.30.203", "10.20.30.202", "127.0.0.1", "localhost")
 
 #* CORS settings to allow your frontend to communicate with the backend
-CORS_ALLOW_ALL_ORIGINS = True
+CORS_ALLOW_ALL_ORIGINS = False
 CORS_ALLOWED_ORIGINS = [
     'http://localhost:8080',  # Expo default port
     'http://127.0.0.1:8080',   # Django backend
     'http://10.20.30.203:8080',
-    'http://api.nxfs.no:80',
     'https://api.nxfs.no:443',
-    'http://10.20.30.202:3000',
+    'http://10.20.30.202:3000', # React frontend dev
 ]
 CORS_ALLOW_HEADERS = [
   
@@ -137,7 +136,6 @@ CORS_ALLOW_HEADERS = [
 CSRF_TRUSTED_ORIGINS = [
     "http://10.20.30.203:8080",
     "https://api.nxfs.no:443",
-    "http://10.20.30.202:3000",
 ]
 
 #SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
