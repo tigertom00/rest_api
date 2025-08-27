@@ -98,6 +98,7 @@ REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
         'restAPI.utils.clerk.ClerkAuthentication',  # Custom authentication class for Clerk
         'rest_framework_simplejwt.authentication.JWTAuthentication', # Simple JWT authentication
+        'rest_framework.authentication.TokenAuthentication', # API Server Token authentication
     ],
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.IsAuthenticated',

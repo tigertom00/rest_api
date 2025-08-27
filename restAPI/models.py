@@ -54,7 +54,7 @@ class CustomUser(AbstractUser):
         upload_to='profile_image', default='default/profile.png')
     clerk_profile_image_url = models.URLField(blank=True, null=True)
     dark_mode = models.BooleanField(default=False)
-    clerk_id = models.CharField(max_length=255, blank=True, null=True)  
+    clerk_user_id = models.CharField(max_length=255, blank=True, null=True)  
     has_image = models.BooleanField(default=False)
     two_factor_enabled = models.BooleanField(default=False)
     clerk_updated_at = models.DateTimeField(auto_now=True)

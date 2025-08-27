@@ -52,7 +52,7 @@ def clerk_webhook(request):
     # Extract Clerk fields
     email = data.get("email_addresses", [{}])[0].get("email_address")
     username = data.get("username") or (email.split('@')[0] if email else None)
-    clerk_id = data.get("id")
+    clerk_user_id = data.get("id")
     clerk_profile_image_url = data.get("profile_image_url")
     two_factor_enabled = data.get("two_factor_enabled", False)
     has_image = bool(clerk_profile_image_url)
@@ -78,7 +78,7 @@ def clerk_webhook(request):
             defaults={
                 "username": username,
                 "display_name": display_name,
-                "clerk_id": clerk_id,
+                "clerk_user_id": clerk_user_id,
                 "clerk_profile_image_url": clerk_profile_image_url,
                 "two_factor_enabled": two_factor_enabled,
                 "has_image": has_image,
@@ -93,7 +93,7 @@ def clerk_webhook(request):
             User.objects.filter(email=email).update(
                 username=username,
                 display_name=display_name,
-                clerk_id=clerk_id,
+                clerk_user_id=clerk_user_id,
                 clerk_profile_image_url=clerk_profile_image_url,
                 two_factor_enabled=two_factor_enabled,
                 has_image=has_image,
