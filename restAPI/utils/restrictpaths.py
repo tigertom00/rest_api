@@ -9,8 +9,6 @@ class RestrictPathsMiddleware:
         # Define restricted paths
         self.restricted_paths = [
             '/admin/',
-            '/schema/',
-            '/schema/swagger-ui/'
         ]
 
     def __call__(self, request):
