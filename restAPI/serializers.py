@@ -9,7 +9,6 @@ import random
 
 Users = get_user_model()
 
-
 #* Users Serializer
 class UsersSerializer(serializers.ModelSerializer):
     class Meta:
@@ -21,10 +20,6 @@ class UsersSerializer(serializers.ModelSerializer):
         extra_kwargs = {
             'email': {'required': True, 'allow_blank': False}
         }
-        # fields = '__all__'
-        # queryset = Users.objects.all()
-
-#* Create Users Serializer
 
 class CreateUsersSerializer(serializers.ModelSerializer):
     email = serializers.EmailField(
@@ -36,7 +31,7 @@ class CreateUsersSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Users
-        fields = ('email', 'password1', 'password2')  # <-- Remove 'username'
+        fields = ('email', 'password1', 'password2')
 
     def validate(self, data):
         if data['password1'] != data['password2']:
@@ -59,20 +54,11 @@ class CreateUsersSerializer(serializers.ModelSerializer):
         return user
     
 
-#* Custom Token Obtain Pair Serializer
-
 class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
     @classmethod
     def get_token(cls, user):
         token = super(MyTokenObtainPairSerializer, cls).get_token(user)
-
-
-        # Add custom claims
-        # token['name'] = user.name
-        # ...
-
         return token
-
 
 class TokenObtainLifetimeSerializer(TokenObtainPairSerializer):
 
@@ -82,7 +68,6 @@ class TokenObtainLifetimeSerializer(TokenObtainPairSerializer):
         data['lifetime'] = int(refresh.access_token.lifetime.total_seconds())
         return data
 
-
 class TokenRefreshLifetimeSerializer(TokenRefreshSerializer):
 
     def validate(self, attrs):
@@ -91,7 +76,6 @@ class TokenRefreshLifetimeSerializer(TokenRefreshSerializer):
         data['lifetime'] = int(refresh.access_token.lifetime.total_seconds())
         return data
 
-#* Blacklist Token Serializer
 class BlacklistTokenSerializer(serializers.Serializer):
     refresh_token = serializers.CharField()
     

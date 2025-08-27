@@ -118,6 +118,7 @@ SIMPLE_JWT = {
 CLERK_URL = os.getenv('CLERK_URL')
 CLERK_SECRET_KEY = os.getenv('CLERK_SECRET_KEY')
 CLERK_WEBHOOK_KEY = os.getenv('CLERK_WEBHOOK_KEY')
+CLERK_JWT_PUBLIC_KEY_URL = f"{CLERK_URL}/.well-known/jwks.json"
 
 #* Host settings
 ALLOWED_HOSTS = ("api.nxfs.no", "10.20.30.203", "10.20.30.202", "127.0.0.1", "localhost")

@@ -1,4 +1,4 @@
-from django.urls import path, re_path
+from django.urls import path
 from rest_framework import routers
 from . import views
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
@@ -8,17 +8,13 @@ from rest_framework_simplejwt.views import (
     TokenVerifyView,
 )
 
-
 router = routers.DefaultRouter()
 router.register('user', views.UsersViewSet, 'users')
-
 
 urlpatterns = [
     #path('', views.index, name='index'),
     path("", views.landing_page, name="landing"),
     path('register/' , views.CreateUsersViewSet.as_view(), name='register'),
-    #path('dj-rest-auth/', include('dj_rest_auth.urls')),
-    #path('dj-rest-auth/registration/', include('dj_rest_auth.registration.urls')),
     path('token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     #path('token/verify/', TokenVerifyView.as_view(), name='token_verify'),
