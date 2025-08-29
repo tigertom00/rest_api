@@ -1,7 +1,8 @@
 from rest_framework import viewsets, permissions, status, generics
+from rest_framework.decorators import api_view, permission_classes, authentication_classes
 from django.contrib.auth import get_user_model
 from .serializers import UsersSerializer, CreateUsersSerializer, BlacklistTokenSerializer
-from django.http import HttpResponse
+from django.http import HttpResponse, JsonResponse
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken
@@ -15,6 +16,7 @@ from datetime import datetime, timezone
 from webdav3.client import Client
 from caldav import DAVClient
 from django.shortcuts import render
+import subprocess
 
 User = get_user_model()
 
@@ -189,6 +191,26 @@ class BlacklistTokenView(APIView):
             except Exception:
                 return Response(status=status.HTTP_400_BAD_REQUEST)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+
+#* Wake on LAN webhook (zero)
+@csrf_exempt
+@api_view(['POST'])
+@permission_classes([permissions.IsAuthenticated])
+def wakeonlan_webhook(request):
+    if request.method != "POST":
+        return JsonResponse({"error": "Method not allowed"}, status=405)
+    mac_address = settings.ZERO_MAC
+    try:
+        result = subprocess.run(
+            ["wakeonlan", mac_address],
+            capture_output=True,
+            text=True,
+            check=True
+        )
+        return JsonResponse({"status": "sent", "output": result.stdout})
+    except subprocess.CalledProcessError as e:
+        return JsonResponse({"error": str(e), "output": e.output}, status=500)
     
 #* Nextcloud
 

@@ -16,6 +16,7 @@ RUN apt-get update && \
     gcc \
     libmariadb-dev \
     pkg-config \
+    wakeonlan \
     curl && \
     rm -rf /var/lib/apt/lists/*
 
