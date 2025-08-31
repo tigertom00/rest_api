@@ -22,7 +22,7 @@ class Task(models.Model):
     due_date = models.DateField(null=True, blank=True)
     estimated_time = models.DecimalField(null=True, blank=True, decimal_places=1, max_digits=3)
     completed = models.BooleanField(default=False)
-    user_id = models.ForeignKey(User, on_delete=models.CASCADE, related_name='Task') # Clerk user ID
+    user_id = models.ForeignKey(User, on_delete=models.CASCADE, related_name='Tasks')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

@@ -1,6 +1,5 @@
 from pathlib import Path
-import os
-import socket
+import os, socket
 from datetime import timedelta
 from dotenv import load_dotenv
 
@@ -14,6 +13,8 @@ load_dotenv(BASE_DIR / '.env')
 #* Security settings
 SECRET_KEY = os.getenv('SECRET_KEY')
 DEBUG = True
+
+
 
 #* Applications
 INSTALLED_APPS = [
@@ -36,6 +37,7 @@ INSTALLED_APPS = [
     'restAPI', # Your custom app for the API with User models and middleware
     'app.tasks',
     'app.todo',
+    'app.blog',
 
 ]
 

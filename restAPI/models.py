@@ -58,6 +58,10 @@ class CustomUser(AbstractUser):
     has_image = models.BooleanField(default=False)
     two_factor_enabled = models.BooleanField(default=False)
     clerk_updated_at = models.DateTimeField(auto_now=True)
+    language = models.CharField(max_length=10, choices=[
+        ('en', 'English'),
+        ('no', 'Norwegian'),
+    ], default='en')
 
 
 
