@@ -15,7 +15,7 @@ class UsersSerializer(serializers.ModelSerializer):
         model = Users
         fields = (
             'id', 'email', 'display_name', 'first_name', 'last_name', 'date_of_birth', 'address',
-            'city', 'country', 'website', 'phone', 'profile_picture', 'date_joined', 'last_login', 'dark_mode', 'language'
+            'city', 'country', 'website', 'phone', 'profile_picture', 'date_joined', 'last_login', 'dark_mode', 'chat_session_id', 'language'
         )
         extra_kwargs = {
             'email': {'required': True, 'allow_blank': False}

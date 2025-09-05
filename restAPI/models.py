@@ -1,6 +1,6 @@
 from django.db import models
 from django.contrib.auth.models import AbstractUser, UserManager
-import os
+import os, uuid
 
 
 # Users
@@ -58,6 +58,8 @@ class CustomUser(AbstractUser):
     has_image = models.BooleanField(default=False)
     two_factor_enabled = models.BooleanField(default=False)
     clerk_updated_at = models.DateTimeField(auto_now=True)
+    chat_session_id = models.UUIDField(
+        default=uuid.uuid4, blank=True, null=True)
     language = models.CharField(max_length=10, choices=[
         ('en', 'English'),
         ('no', 'Norwegian'),

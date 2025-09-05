@@ -1,6 +1,13 @@
 from rest_framework import serializers
 from .models import BlogPost, PostImage, PostAudio, PostYouTube, Tag, PostImage, PostAudio
+from django.contrib.auth import get_user_model
 
+User = get_user_model()
+
+class AuthorPublicSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ("id", "email", "display_name", "profile_picture")
 
 class PostImageUploadSerializer(serializers.ModelSerializer):
     class Meta:
@@ -35,6 +42,47 @@ class TagSerializer(serializers.ModelSerializer):
         fields = ("id", "name", "slug")
 
 class BlogPostSerializer(serializers.ModelSerializer):
+    images = serializers.SerializerMethodField()
+    audio_files = serializers.SerializerMethodField()
+    youtube_videos = serializers.SerializerMethodField()
+    tags = serializers.StringRelatedField(many=True)
+    body_html = serializers.ReadOnlyField()
+
+    class Meta:
+        model = BlogPost
+        fields = (
+            "id", "author", "title", "slug", "excerpt",
+            "body_markdown", "body_html",  # 👈 markdown + html
+            "status", "tags",
+            "images", "audio_files", "youtube_videos",
+            "meta_title", "meta_description",
+            "published_at", "created_at", "updated_at",
+        )
+        read_only_fields = ("slug", "published_at", "author", "body_html")
+
+    def get_images(self, obj):
+        return [{"id": i.id, "url": i.image.url, "alt": i.alt_text, "caption": i.caption} for i in obj.images.all()]
+
+    def get_audio_files(self, obj):
+        return [{"id": a.id, "url": a.audio.url, "title": a.title, "duration": a.duration_seconds} for a in obj.audio_files.all()]
+
+    def get_youtube_videos(self, obj):
+        return [{"id": y.id, "url": y.url, "video_id": y.video_id, "title": y.title} for y in obj.youtube_videos.all()]
+
+
+class BlogPostWriteSerializer(serializers.ModelSerializer):
+    """Used for create/update — accepts markdown input."""
+    class Meta:
+        model = BlogPost
+        fields = (
+            "id", "title", "excerpt", "body_markdown",
+            "status", "meta_title", "meta_description", "tags"
+        )
+
+
+"""
+class BlogPostSerializer(serializers.ModelSerializer):
+    author = AuthorPublicSerializer(read_only=True)
     images = PostImageSerializer(many=True, read_only=True)
     audio_files = PostAudioSerializer(many=True, read_only=True)
     youtube_videos = PostYouTubeSerializer(many=True, read_only=True)
@@ -51,10 +99,11 @@ class BlogPostSerializer(serializers.ModelSerializer):
         read_only_fields = ("slug", "published_at", "author")
 
 class BlogPostWriteSerializer(serializers.ModelSerializer):
-    """Use for create/update; author is set from request.user in the view."""
+    #Use for create/update; author is set from request.user in the view.
     class Meta:
         model = BlogPost
         fields = (
             "id", "title", "excerpt", "body", "status",
             "meta_title", "meta_description", "tags"
         )
+"""

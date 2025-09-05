@@ -30,7 +30,7 @@ class PostYouTubeInline(admin.TabularInline):
 class BlogPostAdmin(admin.ModelAdmin):
     list_display = ("title", "author", "status", "published_at")
     list_filter = ("status", "author", "tags")
-    search_fields = ("title", "excerpt", "body")
+    search_fields = ("title", "excerpt", "body_markdown")
     inlines = [PostImageInline, PostAudioInline, PostYouTubeInline]
     autocomplete_fields = ("author", "tags")
     readonly_fields = ("slug", "published_at", "created_at", "updated_at")

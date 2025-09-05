@@ -20,7 +20,7 @@ class CustomUserAdmin(UserAdmin):
         (None, {'fields': ('email', 'phone', 'password')}),
         ('Personal info', {'fields': (
             'username', 'display_name', 'date_of_birth', 'address', 'city', 'country',
-            'website', 'language', 'profile_picture', 'clerk_profile_image_url'
+            'website', 'chat_session_id', 'language', 'profile_picture', 'clerk_profile_image_url'
         )}),
         ('Clerk Info', {'fields': (
             'clerk_user_id', 'has_image', 'two_factor_enabled',

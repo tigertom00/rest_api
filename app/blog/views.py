@@ -35,8 +35,27 @@ class PostAudioViewSet(viewsets.ModelViewSet):
         post = get_object_or_404(BlogPost, pk=post_id, author=self.request.user)
         serializer.save(post=post)
 
+"""
 class BlogPostViewSet(viewsets.ModelViewSet):
-    """
+    permission_classes = [IsOwnerOrFeaturedReadOnly]
+
+    def get_queryset(self):
+        # unchanged …
+        pass  
+
+    def get_serializer_class(self):
+        if self.request.method in ("POST", "PUT", "PATCH"):
+            return BlogPostWriteSerializer
+        return BlogPostSerializer
+
+    def perform_create(self, serializer):
+        serializer.save(author=self.request.user)
+"""
+
+
+
+class BlogPostViewSet(viewsets.ModelViewSet):
+    """ 
     Routes:
       - /api/posts/      -> Auth users: list your posts. Unauth: list featured author's published posts.
       - /api/posts/:id/  -> Detail with the same visibility rules.
@@ -64,7 +83,7 @@ class BlogPostViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=["get"], url_path="public", permission_classes=[])
     def public(self, request):
-        """Landing page feed: always returns featured author's published posts."""
+        #Landing page feed: always returns featured author's published posts.
         settings_row = SiteSettings.objects.first()
         qs = BlogPost.objects.none()
         if settings_row and settings_row.featured_author_id:
@@ -74,3 +93,4 @@ class BlogPostViewSet(viewsets.ModelViewSet):
             ).select_related("author").prefetch_related("tags", "images", "audio_files", "youtube_videos")
         serializer = BlogPostSerializer(qs, many=True)
         return Response(serializer.data)
+

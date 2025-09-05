@@ -132,10 +132,20 @@ CORS_ALLOWED_ORIGINS = [
     'http://127.0.0.1:8080',   # Django backend
     'http://10.20.30.203:8080',
     'https://api.nxfs.no:443',
+    'https://www.nxfs.no',
+    'https:n8n.nxfs.no',
     'http://10.20.30.202:3000', # React frontend dev
 ]
 CORS_ALLOW_HEADERS = [
-  
+    "accept",
+    "accept-encoding",
+    "authorization",
+    "content-type",
+    "dnt",
+    "origin",
+    "user-agent",
+    "x-csrftoken",
+    "x-requested-with",
 ]
 CSRF_TRUSTED_ORIGINS = [
     "http://10.20.30.203:8080",

@@ -22,7 +22,7 @@ urlpatterns = [
     path('schema/', SpectacularAPIView.as_view(), name='schema'),
     path('schema/swagger-ui/', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'),
     path('clerk/webhook/', views.clerk_webhook, name='clerk_webhook'),
-    path('wakeonlan/', views.wakeonlan_webhook, name='wakeonlan_webhook'),
+    #path('wakeonlan/', views.wakeonlan_webhook, name='wakeonlan_webhook'),
     #path('nextcloud/files/', views.fetch_nextcloud_files, name='fetch_nextcloud_files'),
     #path('nextcloud/upload/', views.upload_file, name='upload_filev'),
     #path('nextcloud/contacts/', views.fetch_contacts, name='fetch_contacts'),
