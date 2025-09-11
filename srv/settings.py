@@ -12,7 +12,7 @@ load_dotenv(BASE_DIR / '.env')
 
 #* Security settings
 SECRET_KEY = os.getenv('SECRET_KEY')
-DEBUG = True
+
 
 
 
@@ -38,6 +38,7 @@ INSTALLED_APPS = [
     'app.tasks',
     'app.todo',
     'app.blog',
+    'app.memo',
 
 ]
 
@@ -133,7 +134,9 @@ CORS_ALLOWED_ORIGINS = [
     'http://10.20.30.203:8080',
     'https://api.nxfs.no:443',
     'https://www.nxfs.no',
-    'https:n8n.nxfs.no',
+    'https://nxfs.no',
+    'https://n8n.nxfs.no',
+    'https://cloud.nxfs.no',
     'http://10.20.30.202:3000', # React frontend dev
 ]
 CORS_ALLOW_HEADERS = [
@@ -176,6 +179,7 @@ current_ip = socket.gethostbyname(socket.gethostname())
 
 if current_ip == DEV_IP:
     print("Running on development machine, using SQLite DB.")
+    DEBUG = True
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.sqlite3',
@@ -184,6 +188,7 @@ if current_ip == DEV_IP:
     }
 else:
     print("Running on production server, using MySQL DB.")
+    DEBUG = False
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.mysql',
