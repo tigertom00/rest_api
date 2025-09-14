@@ -12,9 +12,7 @@ load_dotenv(BASE_DIR / '.env')
 
 #* Security settings
 SECRET_KEY = os.getenv('SECRET_KEY')
-
-
-
+TRANSLATION_AUTH_KEY = os.getenv('TRANSLATION_AUTH_KEY')
 
 #* Applications
 INSTALLED_APPS = [
@@ -113,6 +111,7 @@ REST_FRAMEWORK = {
 #* Simple JWT settings
 SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(minutes=1),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=14),
     'ROTATE_REFRESH_TOKENS': True,
     'BLACKLIST_AFTER_ROTATION': True,
     'AUTH_HEADER_TYPES': ('Bearer'),
