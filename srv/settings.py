@@ -39,6 +39,7 @@ INSTALLED_APPS = [
     'app.todo',
     'app.blog',
     'app.memo',
+    'app.components',
 
 ]
 
@@ -111,7 +112,7 @@ REST_FRAMEWORK = {
 
 #* Simple JWT settings
 SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=15),
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=1),
     'ROTATE_REFRESH_TOKENS': True,
     'BLACKLIST_AFTER_ROTATION': True,
     'AUTH_HEADER_TYPES': ('Bearer'),
@@ -187,7 +188,7 @@ if current_ip == DEV_IP:
         }
     }
 else:
-    print("Running on production server, using MySQL DB.")
+    print("Running on production server, using MySQL DB. DEBUG=False")
     DEBUG = False
     DATABASES = {
         'default': {

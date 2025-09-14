@@ -28,7 +28,7 @@ class PostYouTubeInline(admin.TabularInline):
 
 @admin.register(BlogPost)
 class BlogPostAdmin(admin.ModelAdmin):
-    list_display = ("title", "author", "status", "published_at")
+    list_display = ("title", "author", "status", "published_at", "created_at")
     list_filter = ("status", "author", "tags")
     search_fields = ("title", "excerpt", "body_markdown")
     inlines = [PostImageInline, PostAudioInline, PostYouTubeInline]

@@ -35,23 +35,6 @@ class PostAudioViewSet(viewsets.ModelViewSet):
         post = get_object_or_404(BlogPost, pk=post_id, author=self.request.user)
         serializer.save(post=post)
 
-"""
-class BlogPostViewSet(viewsets.ModelViewSet):
-    permission_classes = [IsOwnerOrFeaturedReadOnly]
-
-    def get_queryset(self):
-        # unchanged …
-        pass  
-
-    def get_serializer_class(self):
-        if self.request.method in ("POST", "PUT", "PATCH"):
-            return BlogPostWriteSerializer
-        return BlogPostSerializer
-
-    def perform_create(self, serializer):
-        serializer.save(author=self.request.user)
-"""
-
 
 
 class BlogPostViewSet(viewsets.ModelViewSet):
