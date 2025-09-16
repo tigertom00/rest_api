@@ -193,24 +193,6 @@ class BlacklistTokenView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
 
-#* Wake on LAN webhook (zero)
-@csrf_exempt
-@api_view(['POST'])
-@permission_classes([permissions.IsAuthenticated])
-def wakeonlan_webhook(request):
-    if request.method != "POST":
-        return JsonResponse({"error": "Method not allowed"}, status=405)
-    mac_address = settings.ZERO_MAC
-    try:
-        result = subprocess.run(
-            ["wakeonlan", mac_address],
-            capture_output=True,
-            text=True,
-            check=True
-        )
-        return JsonResponse({"status": "sent", "output": result.stdout})
-    except subprocess.CalledProcessError as e:
-        return JsonResponse({"error": str(e), "output": e.output}, status=500)
     
 #* Nextcloud
 

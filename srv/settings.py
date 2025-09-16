@@ -251,7 +251,6 @@ USE_I18N = True
 
 USE_TZ = True
 
-ZERO_MAC = os.getenv('ZERO_MAC')
 
 #* MCP Server settings
 DJANGO_MCP_AUTHENTICATION_CLASSES = [
