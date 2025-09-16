@@ -23,5 +23,6 @@ urlpatterns = [
     path('api/', include('app.blog.urls')),
     path('app/', include('app.urls')),
     path('memo/', include('app.memo.urls')),
+    path('mcp/', include('mcp_server.urls')),  # MCP server endpoints
     path('admin/', admin.site.urls),
 ]

@@ -5,7 +5,7 @@ from .views import CategoryViewSet, TaskViewSet, ProjectViewSet
 router = DefaultRouter()
 router.register(r"tasks/categories", CategoryViewSet)
 router.register(r"tasks", TaskViewSet)
-router.register(r"tasks/projects", ProjectViewSet)
+router.register(r"projects", ProjectViewSet)
 
 urlpatterns = [
     path("", include(router.urls)),

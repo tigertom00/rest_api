@@ -6,7 +6,7 @@ STOP_URL = "http://10.20.30.202:5000/translate/stop"
 TRANSLATE_URL = "http://10.20.30.202:8080/trans_en_to_no"
 HEADERS = {"Authorization": f"Bearer {TRANSLATION_AUTH_KEY}"}
 
-def translate(fields):
+def translate_no(fields):
     # Start server
     start_response = requests.get(START_URL, headers=HEADERS)
     if start_response.status_code != 200:

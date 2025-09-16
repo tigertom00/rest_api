@@ -2,10 +2,12 @@
 from django.db import models
 from django.contrib.auth import get_user_model
 from django.utils import timezone
+from restAPI.utils.n8n_translate import send_translation_request
 
 User = get_user_model()
 
 class Category(models.Model):
+    slug = models.SlugField(max_length=100, unique=True)
     name = models.CharField(max_length=100)
     name_nb = models.CharField(max_length=100, blank=True, null=True)
 
@@ -41,6 +43,7 @@ class Task(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     category = models.ManyToManyField(Category, blank=True, related_name='tasks')
+    project = models.ForeignKey('Project', on_delete=models.CASCADE, related_name='project_tasks', null=True, blank=True)
 
     STATUS_TRANSLATION = {
     'todo': 'å gjøre',
@@ -86,11 +89,8 @@ class Project(models.Model):
         ('pågående', 'Pågående'),
         ('fullført', 'Fullført')
     ])
-    STATUS_TRANSLATION = {
-    'todo': 'å gjøre',
-    'in_progress': 'pågående',
-    'completed': 'fullført'
-}
+ 
+
 
     def save(self, *args, **kwargs):
     # Sync completed with status
@@ -102,9 +102,9 @@ class Project(models.Model):
             self.completed = False
             self.completed_at = None
 
-    # Sync translated status
-        self.status_nb = self.__class__.STATUS_TRANSLATION.get(self.status, self.status)
-        super(Task, self).save(*args, **kwargs)
+
+
+        super(Project, self).save(*args, **kwargs)
 
 
 

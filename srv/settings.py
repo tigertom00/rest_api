@@ -14,6 +14,10 @@ load_dotenv(BASE_DIR / '.env')
 SECRET_KEY = os.getenv('SECRET_KEY')
 TRANSLATION_AUTH_KEY = os.getenv('TRANSLATION_AUTH_KEY')
 
+#* n8n integration settings
+N8N_TRANSLATE_WEBHOOK_URL = os.getenv('N8N_TRANSLATE_WEBHOOK_URL', 'https://n8n.nxfs.no/webhook/translate-task')
+API_BASE_URL = os.getenv('API_BASE_URL', 'https://api.nxfs.no')
+
 #* Applications
 INSTALLED_APPS = [
     'django.contrib.admin', # Admin interface
@@ -38,6 +42,7 @@ INSTALLED_APPS = [
     'app.blog',
     'app.memo',
     'app.components',
+    'mcp_server',  # MCP server for AI integration
 
 ]
 
@@ -110,7 +115,7 @@ REST_FRAMEWORK = {
 
 #* Simple JWT settings
 SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=1),
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=15),
     'REFRESH_TOKEN_LIFETIME': timedelta(days=14),
     'ROTATE_REFRESH_TOKENS': True,
     'BLACKLIST_AFTER_ROTATION': True,
@@ -247,6 +252,11 @@ USE_I18N = True
 USE_TZ = True
 
 ZERO_MAC = os.getenv('ZERO_MAC')
+
+#* MCP Server settings
+DJANGO_MCP_AUTHENTICATION_CLASSES = [
+    'rest_framework.authentication.TokenAuthentication',  # Use DRF tokens for MCP
+]
 
 #* Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
