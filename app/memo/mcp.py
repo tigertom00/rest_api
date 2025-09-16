@@ -1,5 +1,6 @@
 from mcp_server import mcp_server, ModelQueryToolset
-from .models import Leverandorer, Matriell, Jobber, JobbMatriell, Timeliste
+from .models import Leverandorer, Matriell, Jobber, JobbMatriell, Timeliste, JobberImage, JobberFile
+from restAPI.mcp import UserToolset
 
 
 @mcp_server.tool()
@@ -70,3 +71,25 @@ class TimelisteToolset(ModelQueryToolset):
     serializable_fields = [
         'id', 'beskrivelse', 'dato', 'timer', 'created_at', 'updated_at'
     ]
+
+
+@mcp_server.tool()
+class JobberImageToolset(ModelQueryToolset):
+    """MCP toolset for managing job images"""
+
+    model = JobberImage
+
+    filterable_fields = ['jobb']
+
+    serializable_fields = ['id', 'created_at']
+
+
+@mcp_server.tool()
+class JobberFileToolset(ModelQueryToolset):
+    """MCP toolset for managing job files"""
+
+    model = JobberFile
+
+    filterable_fields = ['jobb']
+
+    serializable_fields = ['id', 'created_at']

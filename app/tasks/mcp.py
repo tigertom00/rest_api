@@ -1,5 +1,6 @@
 from mcp_server import mcp_server, ModelQueryToolset
 from .models import Task, Project, Category
+from restAPI.mcp import UserToolset
 
 
 @mcp_server.tool()

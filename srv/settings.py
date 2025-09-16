@@ -32,6 +32,7 @@ INSTALLED_APPS = [
     'rest_framework.authtoken', # Token authentication for Django REST Framework
     'rest_framework_simplejwt', # Simple JWT for token authentication
     'rest_framework_simplejwt.token_blacklist', # Token blacklist for JWT
+    'oauth2_provider', # OAuth2 provider for external app authentication
     'corsheaders',  # CORS headers for cross-origin requests
     'drf_spectacular', # DRF Spectacular for OpenAPI schema generation
     'channels',  # Channels for WebSockets and async support (push notifications, etc.)
@@ -103,6 +104,7 @@ AUTH_PASSWORD_VALIDATORS = [
 #* rest framework settings
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
+        'oauth2_provider.contrib.rest_framework.OAuth2Authentication', # OAuth2 authentication
         'restAPI.utils.clerk.ClerkAuthentication',  # Custom authentication class for Clerk
         'rest_framework_simplejwt.authentication.JWTAuthentication', # Simple JWT authentication
         'rest_framework.authentication.TokenAuthentication', # API Server Token authentication
@@ -110,7 +112,7 @@ REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.IsAuthenticated',
     ],
-    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',  
+    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
 }
 
 #* Simple JWT settings
@@ -245,9 +247,25 @@ USE_I18N = True
 USE_TZ = True
 
 
+#* OAuth2 Provider settings
+OAUTH2_PROVIDER = {
+    'SCOPES': {
+        'read': 'Read scope',
+        'write': 'Write scope',
+    },
+    'ACCESS_TOKEN_EXPIRE_SECONDS': 3600,
+    'REFRESH_TOKEN_EXPIRE_SECONDS': 3600 * 24 * 7,  # 7 days
+    'AUTHORIZATION_CODE_EXPIRE_SECONDS': 600,
+    'ROTATE_REFRESH_TOKEN': True,
+}
+
+# Login URL for OAuth2
+LOGIN_URL = '/admin/login/'
+
 #* MCP Server settings
 DJANGO_MCP_AUTHENTICATION_CLASSES = [
-    'rest_framework.authentication.TokenAuthentication',  # Use DRF tokens for MCP
+    'oauth2_provider.contrib.rest_framework.OAuth2Authentication',  # OAuth2 for MCP
+    'rest_framework.authentication.TokenAuthentication',  # Token auth for MCP
 ]
 
 #* Default primary key field type

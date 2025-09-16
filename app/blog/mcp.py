@@ -1,5 +1,6 @@
 from mcp_server import mcp_server, ModelQueryToolset
-from .models import BlogPost, Tag, SiteSettings
+from .models import BlogPost, Tag, SiteSettings, PostImage, PostAudio, PostYouTube
+from restAPI.mcp import UserToolset
 
 
 @mcp_server.tool()
@@ -40,3 +41,39 @@ class SiteSettingsToolset(ModelQueryToolset):
     filterable_fields = ['featured_author']
 
     serializable_fields = ['id', 'featured_author']
+
+
+@mcp_server.tool()
+class PostImageToolset(ModelQueryToolset):
+    """MCP toolset for managing blog post images"""
+
+    model = PostImage
+
+    searchable_fields = ['alt_text', 'caption']
+    filterable_fields = ['post']
+
+    serializable_fields = ['id', 'alt_text', 'caption', 'order']
+
+
+@mcp_server.tool()
+class PostAudioToolset(ModelQueryToolset):
+    """MCP toolset for managing blog post audio files"""
+
+    model = PostAudio
+
+    searchable_fields = ['title']
+    filterable_fields = ['post']
+
+    serializable_fields = ['id', 'title', 'duration_seconds', 'order']
+
+
+@mcp_server.tool()
+class PostYouTubeToolset(ModelQueryToolset):
+    """MCP toolset for managing blog post YouTube videos"""
+
+    model = PostYouTube
+
+    searchable_fields = ['url', 'title', 'video_id']
+    filterable_fields = ['post', 'video_id']
+
+    serializable_fields = ['id', 'url', 'video_id', 'title', 'order']
