@@ -23,6 +23,7 @@ urlpatterns = [
     path('api/', include('app.blog.urls')),
     path('app/', include('app.urls')),
     path('memo/', include('app.memo.urls')),
+    path('', include('app.docker_monitor.urls')),  # Docker monitoring endpoints
     path('mcp/', include('mcp_server.urls')),  # MCP server endpoints
     path('o/', include('oauth2_provider.urls', namespace='oauth2_provider')),  # OAuth2 endpoints
     path('admin/', admin.site.urls),

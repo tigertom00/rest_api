@@ -3,6 +3,7 @@ from django.db import models
 from django.contrib.auth import get_user_model
 from django.utils import timezone
 from restAPI.utils.n8n_translate import send_translation_request
+import os
 
 User = get_user_model()
 
@@ -13,6 +14,50 @@ class Category(models.Model):
 
     def __str__(self):
         return self.name
+
+
+def task_image_upload_path(instance, filename):
+    """Generate upload path for task images"""
+    return f'tasks/{instance.task.user_id.id}/images/{filename}'
+
+
+def project_image_upload_path(instance, filename):
+    """Generate upload path for project images"""
+    return f'projects/{instance.project.user_id.id}/images/{filename}'
+
+
+class TaskImage(models.Model):
+    task = models.ForeignKey('Task', on_delete=models.CASCADE, related_name='images')
+    image = models.ImageField(upload_to=task_image_upload_path)
+    caption = models.CharField(max_length=255, blank=True)
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+
+    def delete(self, *args, **kwargs):
+        # Delete the file when the model instance is deleted
+        if self.image:
+            if os.path.isfile(self.image.path):
+                os.remove(self.image.path)
+        super().delete(*args, **kwargs)
+
+    def __str__(self):
+        return f"Image for {self.task.title}"
+
+
+class ProjectImage(models.Model):
+    project = models.ForeignKey('Project', on_delete=models.CASCADE, related_name='images')
+    image = models.ImageField(upload_to=project_image_upload_path)
+    caption = models.CharField(max_length=255, blank=True)
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+
+    def delete(self, *args, **kwargs):
+        # Delete the file when the model instance is deleted
+        if self.image:
+            if os.path.isfile(self.image.path):
+                os.remove(self.image.path)
+        super().delete(*args, **kwargs)
+
+    def __str__(self):
+        return f"Image for {self.project.name}"
 
 class Task(models.Model):
     title = models.CharField(max_length=200)

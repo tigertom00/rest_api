@@ -9,8 +9,50 @@ services:
       - /srv/docker/restAPI/static:/app/static
       - /srv/docker/restAPI/media:/app/media
       - /srv/docker/restAPI/.env:/app/.env:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
     expose:
       - "8000"
+    restart: unless-stopped
+    depends_on:
+      - redis
+    networks:
+      - main-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: restapi_redis
+    restart: unless-stopped
+    volumes:
+      - redis_data:/data
+    networks:
+      - main-network
+
+  celery:
+    image: tigertom/rest_api
+    container_name: restapi_celery
+    command: celery -A srv worker --loglevel=info
+    volumes:
+      - /srv/docker/restAPI:/app
+      - /srv/docker/restAPI/.env:/app/.env:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    depends_on:
+      - redis
+      - django
+    restart: unless-stopped
+    networks:
+      - main-network
+
+  celery-beat:
+    image: tigertom/rest_api
+    container_name: restapi_celery_beat
+    command: celery -A srv beat --loglevel=info
+    volumes:
+      - /srv/docker/restAPI:/app
+      - /srv/docker/restAPI/.env:/app/.env:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    depends_on:
+      - redis
+      - django
     restart: unless-stopped
     networks:
       - main-network
@@ -29,6 +71,9 @@ services:
     restart: unless-stopped
     networks:
       - main-network
+volumes:
+  redis_data:
+
 networks:
   main-network:
     external: true

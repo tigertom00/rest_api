@@ -43,8 +43,8 @@ INSTALLED_APPS = [
     'app.blog',
     'app.memo',
     'app.components',
+    'app.docker_monitor',  # Docker container monitoring
     'mcp_server',  # MCP server for AI integration
-
 ]
 
 #* Middleware
@@ -162,7 +162,7 @@ CSRF_TRUSTED_ORIGINS = [
     "https://api.nxfs.no:443",
 ]
 
-#SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
 
 #* Spec settings for drf_spectacular
@@ -217,9 +217,10 @@ GOTIFY_ACCESS_TOKEN = os.getenv('GOTIFY_ACCESS_TOKEN')  # Access token for Gotif
 #* Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 STATIC_URL = 'static/'
-MEDIA_URL = 'media/'
 STATIC_ROOT = os.path.join(BASE_DIR, 'static/')
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media/')
+MEDIA_URL = '/media/'
+
 STATICFILES_DIRS = [
     
    
@@ -267,6 +268,54 @@ DJANGO_MCP_AUTHENTICATION_CLASSES = [
     'oauth2_provider.contrib.rest_framework.OAuth2Authentication',  # OAuth2 for MCP
     'rest_framework.authentication.TokenAuthentication',  # Token auth for MCP
 ]
+
+#* Celery Configuration
+CELERY_BROKER_URL = 'redis://redis:6379/0'
+CELERY_RESULT_BACKEND = 'redis://redis:6379/0'
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
+CELERY_TIMEZONE = TIME_ZONE
+CELERY_ENABLE_UTC = True
+
+# Celery Beat Schedule
+CELERY_BEAT_SCHEDULE = {
+    'sync-docker-containers': {
+        'task': 'app.docker_monitor.tasks.sync_containers',
+        'schedule': 120.0,  # Every 2 minutes
+    },
+    'collect-container-stats': {
+        'task': 'app.docker_monitor.tasks.collect_stats',
+        'schedule': 300.0,  # Every 5 minutes
+    },
+}
+
+#* Logging Configuration
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+        },
+    },
+    'loggers': {
+        'mcp_server': {
+            'handlers': ['console'],
+            'level': 'ERROR',  # Suppress INFO/WARNING messages from MCP
+            'propagate': False,
+        },
+        'django_mcp_server': {
+            'handlers': ['console'],
+            'level': 'ERROR',  # Suppress INFO/WARNING messages from Django MCP
+            'propagate': False,
+        },
+    },
+    'root': {
+        'handlers': ['console'],
+        'level': 'INFO',
+    },
+}
 
 #* Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
