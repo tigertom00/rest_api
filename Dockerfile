@@ -25,8 +25,9 @@ RUN apt-get update && \
     apt-get install -y --no-install-recommends curl && \
     rm -rf /var/lib/apt/lists/*
 
-# Create non-root user and app directory
-RUN useradd -m -u 1000 tiger && \
+# Create docker group and non-root user
+RUN groupadd -g 999 docker && \
+    useradd -m -u 1000 -G docker tiger && \
     mkdir -p /app && \
     chown tiger:tiger /app
 
