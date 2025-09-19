@@ -1,9 +1,9 @@
 from rest_framework import viewsets, status
-from rest_framework.decorators import action
+from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from django.utils import timezone
-from datetime import timedelta
+from datetime import timedelta, datetime
 
 from .models import DockerHost, DockerContainer, ContainerStats
 from .serializers import (
@@ -43,6 +43,104 @@ class DockerHostViewSet(viewsets.ReadOnlyModelViewSet):
                 'status': 'error',
                 'message': str(e)
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def agent_sync_containers(request):
+    """Webhook endpoint for remote agents to sync container data"""
+
+    try:
+        data = request.data
+        host_data = data.get('host', {})
+        containers_data = data.get('containers', [])
+
+        # Get or create host
+        host, created = DockerHost.objects.get_or_create(
+            name=host_data.get('name'),
+            defaults={
+                'hostname': host_data.get('hostname', host_data.get('name')),
+                'is_local': False,
+                'is_active': True,
+                'last_seen': timezone.now()
+            }
+        )
+
+        if not created:
+            host.last_seen = timezone.now()
+            host.is_active = True
+            host.save(update_fields=['last_seen', 'is_active'])
+
+        # Track container IDs from this sync
+        synced_container_ids = []
+
+        # Process each container
+        for container_data in containers_data:
+            # Parse timestamps
+            created_at = timezone.now()
+            if container_data.get('created_at'):
+                try:
+                    created_at = datetime.fromisoformat(container_data['created_at'].replace('Z', '+00:00'))
+                except:
+                    pass
+
+            started_at = None
+            if container_data.get('started_at') and container_data['started_at'] != '0001-01-01T00:00:00Z':
+                try:
+                    started_at = datetime.fromisoformat(container_data['started_at'].replace('Z', '+00:00'))
+                except:
+                    pass
+
+            finished_at = None
+            if container_data.get('finished_at') and container_data['finished_at'] != '0001-01-01T00:00:00Z':
+                try:
+                    finished_at = datetime.fromisoformat(container_data['finished_at'].replace('Z', '+00:00'))
+                except:
+                    pass
+
+            # Update or create container
+            container, created = DockerContainer.objects.update_or_create(
+                host=host,
+                container_id=container_data['container_id'],
+                defaults={
+                    'name': container_data.get('name', ''),
+                    'image': container_data.get('image', ''),
+                    'status': container_data.get('status', 'unknown'),
+                    'state': container_data.get('state', {}),
+                    'ports': container_data.get('ports', []),
+                    'labels': container_data.get('labels', {}),
+                    'networks': container_data.get('networks', {}),
+                    'mounts': container_data.get('mounts', []),
+                    'created_at': created_at,
+                    'started_at': started_at,
+                    'finished_at': finished_at,
+                }
+            )
+
+            synced_container_ids.append(container.container_id)
+
+        # Mark containers not in this sync as potentially removed
+        stale_containers = DockerContainer.objects.filter(
+            host=host
+        ).exclude(container_id__in=synced_container_ids)
+
+        stale_count = stale_containers.count()
+        if stale_count > 0:
+            stale_containers.update(status='removed', updated_at=timezone.now())
+
+        return Response({
+            'status': 'success',
+            'message': f'Synced {len(containers_data)} containers for {host.name}',
+            'host': host.name,
+            'synced_containers': len(containers_data),
+            'marked_removed': stale_count
+        })
+
+    except Exception as e:
+        return Response({
+            'status': 'error',
+            'message': str(e)
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     @action(detail=False, methods=['get'])
     def overview(self, request):
@@ -146,3 +244,101 @@ class DockerContainerViewSet(viewsets.ReadOnlyModelViewSet):
                 'status': 'error',
                 'message': str(e)
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def agent_sync_containers(request):
+    """Webhook endpoint for remote agents to sync container data"""
+
+    try:
+        data = request.data
+        host_data = data.get('host', {})
+        containers_data = data.get('containers', [])
+
+        # Get or create host
+        host, created = DockerHost.objects.get_or_create(
+            name=host_data.get('name'),
+            defaults={
+                'hostname': host_data.get('hostname', host_data.get('name')),
+                'is_local': False,
+                'is_active': True,
+                'last_seen': timezone.now()
+            }
+        )
+
+        if not created:
+            host.last_seen = timezone.now()
+            host.is_active = True
+            host.save(update_fields=['last_seen', 'is_active'])
+
+        # Track container IDs from this sync
+        synced_container_ids = []
+
+        # Process each container
+        for container_data in containers_data:
+            # Parse timestamps
+            created_at = timezone.now()
+            if container_data.get('created_at'):
+                try:
+                    created_at = datetime.fromisoformat(container_data['created_at'].replace('Z', '+00:00'))
+                except:
+                    pass
+
+            started_at = None
+            if container_data.get('started_at') and container_data['started_at'] != '0001-01-01T00:00:00Z':
+                try:
+                    started_at = datetime.fromisoformat(container_data['started_at'].replace('Z', '+00:00'))
+                except:
+                    pass
+
+            finished_at = None
+            if container_data.get('finished_at') and container_data['finished_at'] != '0001-01-01T00:00:00Z':
+                try:
+                    finished_at = datetime.fromisoformat(container_data['finished_at'].replace('Z', '+00:00'))
+                except:
+                    pass
+
+            # Update or create container
+            container, created = DockerContainer.objects.update_or_create(
+                host=host,
+                container_id=container_data['container_id'],
+                defaults={
+                    'name': container_data.get('name', ''),
+                    'image': container_data.get('image', ''),
+                    'status': container_data.get('status', 'unknown'),
+                    'state': container_data.get('state', {}),
+                    'ports': container_data.get('ports', []),
+                    'labels': container_data.get('labels', {}),
+                    'networks': container_data.get('networks', {}),
+                    'mounts': container_data.get('mounts', []),
+                    'created_at': created_at,
+                    'started_at': started_at,
+                    'finished_at': finished_at,
+                }
+            )
+
+            synced_container_ids.append(container.container_id)
+
+        # Mark containers not in this sync as potentially removed
+        stale_containers = DockerContainer.objects.filter(
+            host=host
+        ).exclude(container_id__in=synced_container_ids)
+
+        stale_count = stale_containers.count()
+        if stale_count > 0:
+            stale_containers.update(status='removed', updated_at=timezone.now())
+
+        return Response({
+            'status': 'success',
+            'message': f'Synced {len(containers_data)} containers for {host.name}',
+            'host': host.name,
+            'synced_containers': len(containers_data),
+            'marked_removed': stale_count
+        })
+
+    except Exception as e:
+        return Response({
+            'status': 'error',
+            'message': str(e)
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
