@@ -1,7 +1,10 @@
 from django.urls import path, include
 
 urlpatterns = [
-    path('', include('app.todo.urls')),
-    path('', include('app.tasks.urls')),
-    path('', include('app.components.urls')),
+    #path('todo/', include('app.todo.urls')),
+    path('tasks/', include('app.tasks.urls')),
+    #path('components/', include('app.components.urls')),
+    #path('memo/', include('app.memo.urls')),
+    
+    path('blog/', include('app.blog.urls')),
 ]

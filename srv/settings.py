@@ -171,6 +171,37 @@ SPECTACULAR_SETTINGS = {
     'DESCRIPTION': 'API for all things...',
     'VERSION': '0.0.1',
     'SERVE_INCLUDE_SCHEMA': True,
+    'COMPONENT_SPLIT_REQUEST': True,
+    'SECURITY': [
+        {
+            'jwtAuth': {
+                'type': 'http',
+                'scheme': 'bearer',
+                'bearerFormat': 'JWT',
+            }
+        },
+        {
+            'oauth2': {
+                'type': 'oauth2',
+                'flows': {
+                    'authorizationCode': {
+                        'authorizationUrl': '/auth/o/authorize/',
+                        'tokenUrl': '/auth/o/token/',
+                        'scopes': {
+                            'read': 'Read access',
+                            'write': 'Write access',
+                        }
+                    }
+                }
+            }
+        }
+    ],
+    'ENUM_NAME_OVERRIDES': {
+        'Status68aEnum': 'TaskStatusEnum',
+        'Status073Enum': 'ProjectStatusEnum',
+        'Status041Enum': 'ContainerStatusEnum',
+    },
+    'DISABLE_ERRORS_AND_WARNINGS': True,
 }
 
 # Development machine settings Database setup

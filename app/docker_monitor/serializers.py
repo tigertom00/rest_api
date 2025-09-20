@@ -1,4 +1,6 @@
 from rest_framework import serializers
+from drf_spectacular.utils import extend_schema_field
+from typing import Dict, Any, Optional, List
 from .models import DockerHost, DockerContainer, ContainerStats
 
 
@@ -13,10 +15,12 @@ class DockerHostSerializer(serializers.ModelSerializer):
             'last_seen', 'created_at', 'container_count', 'running_containers'
         ]
 
-    def get_container_count(self, obj):
+    @extend_schema_field(serializers.IntegerField)
+    def get_container_count(self, obj) -> int:
         return obj.containers.count()
 
-    def get_running_containers(self, obj):
+    @extend_schema_field(serializers.IntegerField)
+    def get_running_containers(self, obj) -> int:
         return obj.containers.filter(status='running').count()
 
 
@@ -44,13 +48,15 @@ class DockerContainerSerializer(serializers.ModelSerializer):
             'updated_at', 'is_running', 'latest_stats', 'uptime'
         ]
 
-    def get_latest_stats(self, obj):
+    @extend_schema_field(serializers.DictField)
+    def get_latest_stats(self, obj) -> Optional[Dict[str, Any]]:
         latest_stat = obj.stats.first()
         if latest_stat:
             return ContainerStatsSerializer(latest_stat).data
         return None
 
-    def get_uptime(self, obj):
+    @extend_schema_field(serializers.DictField)
+    def get_uptime(self, obj) -> Optional[Dict[str, Any]]:
         if obj.started_at and obj.status == 'running':
             from django.utils import timezone
             uptime = timezone.now() - obj.started_at
@@ -68,7 +74,8 @@ class DockerContainerDetailSerializer(DockerContainerSerializer):
     class Meta(DockerContainerSerializer.Meta):
         fields = DockerContainerSerializer.Meta.fields + ['stats_history', 'state', 'mounts']
 
-    def get_stats_history(self, obj):
+    @extend_schema_field(serializers.ListField)
+    def get_stats_history(self, obj) -> List[Dict[str, Any]]:
         # Get last 24 hours of stats
         from django.utils import timezone
         from datetime import timedelta

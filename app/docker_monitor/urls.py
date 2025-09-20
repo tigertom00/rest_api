@@ -7,6 +7,6 @@ router.register(r'hosts', DockerHostViewSet)
 router.register(r'containers', DockerContainerViewSet)
 
 urlpatterns = [
-    path('api/docker/', include(router.urls)),
-    path('api/docker/agent/sync/', agent_sync_containers, name='agent_sync_containers'),
+    path('docker/', include(router.urls)),
+    path('docker/agent/sync/', agent_sync_containers, name='agent_sync_containers'),
 ]

@@ -1,4 +1,6 @@
 from rest_framework import serializers
+from drf_spectacular.utils import extend_schema_field
+from typing import List, Dict, Any
 from .models import BlogPost, PostImage, PostAudio, PostYouTube, Tag, PostImage, PostAudio
 from django.contrib.auth import get_user_model
 
@@ -61,13 +63,16 @@ class BlogPostSerializer(serializers.ModelSerializer):
         )
         read_only_fields = ("slug", "published_at", "author", "body_html")
 
-    def get_images(self, obj):
+    @extend_schema_field(serializers.ListField)
+    def get_images(self, obj) -> List[Dict[str, Any]]:
         return [{"id": i.id, "url": i.image.url, "alt": i.alt_text, "caption": i.caption} for i in obj.images.all()]
 
-    def get_audio_files(self, obj):
+    @extend_schema_field(serializers.ListField)
+    def get_audio_files(self, obj) -> List[Dict[str, Any]]:
         return [{"id": a.id, "url": a.audio.url, "title": a.title, "duration": a.duration_seconds, "order": a.order} for a in obj.audio_files.all()]
 
-    def get_youtube_videos(self, obj):
+    @extend_schema_field(serializers.ListField)
+    def get_youtube_videos(self, obj) -> List[Dict[str, Any]]:
         return [{"id": y.id, "url": y.url, "video_id": y.video_id, "title": y.title} for y in obj.youtube_videos.all()]
 
 
