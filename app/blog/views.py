@@ -1,9 +1,10 @@
 # apps/blog/views.py
-from rest_framework import viewsets, mixins
+from rest_framework import viewsets, mixins, status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.decorators import action
 from django.shortcuts import get_object_or_404
+from django.db import IntegrityError
 
 from .models import BlogPost, SiteSettings, PostImage, PostAudio
 from .serializers import BlogPostSerializer, BlogPostWriteSerializer, PostImageUploadSerializer, PostAudioUploadSerializer
@@ -60,6 +61,17 @@ class BlogPostViewSet(viewsets.ModelViewSet):
         if self.request.method in ("POST", "PUT", "PATCH"):
             return BlogPostWriteSerializer
         return BlogPostSerializer
+
+    def create(self, request, *args, **kwargs):
+        try:
+            return super().create(request, *args, **kwargs)
+        except IntegrityError as e:
+            if 'slug' in str(e):
+                return Response(
+                    {'error': 'A blog post with this title already exists. Please use a different title.'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            raise
 
     def perform_create(self, serializer):
         serializer.save(author=self.request.user)

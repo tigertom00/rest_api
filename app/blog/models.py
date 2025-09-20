@@ -65,10 +65,25 @@ class BlogPost(models.Model):
 
     def save(self, *args, **kwargs):
         if not self.slug:
-            self.slug = slugify(self.title)[:200]
+            base_slug = slugify(self.title)[:200]
+            self.slug = self._get_unique_slug(base_slug)
         if self.status == BlogPost.Status.PUBLISHED and not self.published_at:
             self.published_at = timezone.now()
         return super().save(*args, **kwargs)
+
+    def _get_unique_slug(self, base_slug):
+        """Generate a unique slug by appending a number if necessary"""
+        slug = base_slug
+        counter = 1
+
+        while BlogPost.objects.filter(
+            author=self.author,
+            slug=slug
+        ).exclude(pk=self.pk).exists():
+            slug = f"{base_slug}-{counter}"
+            counter += 1
+
+        return slug
 
     @property
     def body_html(self) -> str:
