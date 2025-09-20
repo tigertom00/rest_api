@@ -204,6 +204,10 @@ SPECTACULAR_SETTINGS = {
     'DISABLE_ERRORS_AND_WARNINGS': True,
 }
 
+# File upload settings
+DATA_UPLOAD_MAX_MEMORY_SIZE = 50 * 1024 * 1024  # 50MB
+FILE_UPLOAD_MAX_MEMORY_SIZE = 50 * 1024 * 1024  # 50MB
+
 # Development machine settings Database setup
 DEV_IP = "10.20.30.202"
 current_ip = socket.gethostbyname(socket.gethostname())
