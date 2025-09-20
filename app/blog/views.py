@@ -6,9 +6,15 @@ from rest_framework.decorators import action
 from django.shortcuts import get_object_or_404
 from django.db import IntegrityError
 
-from .models import BlogPost, SiteSettings, PostImage, PostAudio
-from .serializers import BlogPostSerializer, BlogPostWriteSerializer, PostImageUploadSerializer, PostAudioUploadSerializer
+from .models import BlogPost, SiteSettings, PostImage, PostAudio, Tag
+from .serializers import BlogPostSerializer, BlogPostWriteSerializer, PostImageUploadSerializer, PostAudioUploadSerializer, TagSerializer
 from .permissions import IsOwnerOrFeaturedReadOnly
+
+
+class TagViewSet(viewsets.ModelViewSet):
+    queryset = Tag.objects.all()
+    serializer_class = TagSerializer
+    permission_classes = [IsAuthenticated]
 
 
 class PostImageViewSet(viewsets.ModelViewSet):
