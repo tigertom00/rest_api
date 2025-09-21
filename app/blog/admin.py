@@ -11,8 +11,9 @@ class SiteSettingsAdmin(admin.ModelAdmin):
 
 @admin.register(Tag)
 class TagAdmin(admin.ModelAdmin):
-    prepopulated_fields = {"slug": ("name",)}
+    list_display = ("name", "slug")
     search_fields = ("name",)
+    readonly_fields = ("slug",)
 
 class PostImageInline(admin.TabularInline):
     model = PostImage
