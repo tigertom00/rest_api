@@ -20,5 +20,7 @@ class IsOwnerOrFeaturedReadOnly(BasePermission):
                 and settings_row
                 and settings_row.featured_author_id == obj.author_id
             )
-        # write
-        return request.user.is_authenticated and obj.author_id == request.user.id
+        # write - allow staff users to edit any post, otherwise only owners
+        return request.user.is_authenticated and (
+            request.user.is_staff or obj.author_id == request.user.id
+        )

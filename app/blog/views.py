@@ -70,6 +70,9 @@ class BlogPostViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         q = BlogPost.objects.select_related("author").prefetch_related("tags", "images", "audio_files", "youtube_videos")
         if self.request.user.is_authenticated:
+            # Staff users can see all posts, regular users only see their own
+            if self.request.user.is_staff:
+                return q
             return q.filter(author=self.request.user)
         # unauth: featured + published
         settings_row = SiteSettings.objects.first()
@@ -96,6 +99,9 @@ class BlogPostViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         serializer.save(author=self.request.user)
 
+    def perform_update(self, serializer):
+        serializer.save()
+
     @action(detail=False, methods=["get"], url_path="public", permission_classes=[])
     def public(self, request):
         #Landing page feed: always returns featured author's published posts.
@@ -108,6 +114,7 @@ class BlogPostViewSet(viewsets.ModelViewSet):
             ).select_related("author").prefetch_related("tags", "images", "audio_files", "youtube_videos")
         serializer = BlogPostSerializer(qs, many=True)
         return Response(serializer.data)
+
 
 
 class BlogPostBySlugView(APIView):
@@ -138,5 +145,9 @@ class BlogPostBySlugView(APIView):
 
         serializer = BlogPostSerializer(post)
         return Response(serializer.data)
+
+
+
+
 
 
