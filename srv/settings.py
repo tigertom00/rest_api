@@ -208,23 +208,7 @@ SPECTACULAR_SETTINGS = {
 DATA_UPLOAD_MAX_MEMORY_SIZE = 50 * 1024 * 1024  # 50MB
 FILE_UPLOAD_MAX_MEMORY_SIZE = 50 * 1024 * 1024  # 50MB
 
-# Development machine settings Database setup
-DEV_IP = "10.20.30.202"
-current_ip = socket.gethostbyname(socket.gethostname())
-
-if current_ip == DEV_IP:
-    print("Running on development machine, using SQLite DB.")
-    DEBUG = True
-    DATABASES = {
-        'default': {
-            'ENGINE': 'django.db.backends.sqlite3',
-            'NAME': BASE_DIR / 'db.sqlite3',
-        }
-    }
-else:
-    print("Running on production server, using MySQL DB. DEBUG=False")
-    DEBUG = False
-    DATABASES = {
+DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.mysql',
             'NAME': os.getenv('DB_NAME'),
@@ -234,6 +218,24 @@ else:
             'PORT': os.getenv('DB_PORT'),
         }
     }
+
+# Development machine settings Database setup
+DEV_IP = "10.20.30.202"
+current_ip = socket.gethostbyname(socket.gethostname())
+
+if current_ip == DEV_IP:
+    print("Running on development machine, using SQLite DB.")
+    DEBUG = True
+    #DATABASES = {
+     #   'default': {
+      #      'ENGINE': 'django.db.backends.sqlite3',
+       #     'NAME': BASE_DIR / 'db.sqlite3',
+        #}
+    #}
+else:
+    print("Running on production server, using MySQL DB. DEBUG=False")
+    DEBUG = False
+    
 
 
 #* Channels settings for WebSockets (push notifications, etc.)
