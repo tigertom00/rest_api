@@ -45,6 +45,7 @@ class JobberSerializer(serializers.ModelSerializer):
     jobbmatriell = JobbMatriellSerializer(many=True, read_only=True)
     images = JobberImageSerializer(many=True, read_only=True)
     files = JobberFileSerializer(many=True, read_only=True)
+    total_hours = serializers.ReadOnlyField()
 
     class Meta:
         model = Jobber
