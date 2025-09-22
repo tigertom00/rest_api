@@ -5,10 +5,12 @@ from rest_framework.permissions import IsAuthenticated
 from django.utils import timezone
 from datetime import timedelta, datetime
 
-from .models import DockerHost, DockerContainer, ContainerStats
+from .models import DockerHost, DockerContainer, ContainerStats, SystemStats, ProcessStats
 from .serializers import (
     DockerHostSerializer, DockerContainerSerializer,
-    DockerContainerDetailSerializer, ContainerStatsSerializer
+    DockerContainerDetailSerializer, ContainerStatsSerializer,
+    SystemStatsSerializer, ProcessStatsSerializer, DockerHostDetailSerializer,
+    SystemDashboardSerializer
 )
 from .services import DockerMonitoringService
 

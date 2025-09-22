@@ -1,9 +1,10 @@
 import docker
+import psutil
 import logging
 from datetime import datetime
 from django.utils import timezone
 from django.conf import settings
-from .models import DockerHost, DockerContainer, ContainerStats
+from .models import DockerHost, DockerContainer, ContainerStats, SystemStats, ProcessStats
 
 logger = logging.getLogger(__name__)
 
@@ -231,3 +232,196 @@ class DockerMonitoringService:
             'block_read': block_read,
             'block_write': block_write,
         }
+
+    def update_host_system_info(self, host=None):
+        """Update system specifications for a host"""
+        if not host:
+            host = self.get_or_create_host()
+
+        try:
+            # CPU info
+            cpu_info = {}
+            try:
+                with open('/proc/cpuinfo', 'r') as f:
+                    for line in f:
+                        if line.strip():
+                            key, value = line.split(':', 1)
+                            key = key.strip()
+                            if key == 'model name' and 'model_name' not in cpu_info:
+                                cpu_info['model_name'] = value.strip()
+                            elif key == 'processor':
+                                cpu_info['cores'] = int(value.strip()) + 1
+            except:
+                pass
+
+            # Memory info
+            memory = psutil.virtual_memory()
+
+            # System info
+            import platform
+            uname = platform.uname()
+
+            # Update host with system info
+            host.cpu_cores = psutil.cpu_count(logical=False) or psutil.cpu_count()
+            host.cpu_model = cpu_info.get('model_name', uname.processor)
+            host.total_memory = memory.total
+            host.architecture = uname.machine
+            host.os_name = uname.system
+            host.os_version = uname.release
+            host.kernel_version = uname.version
+            host.save()
+
+            logger.info(f"Updated system info for host {host.name}")
+            return host
+
+        except Exception as e:
+            logger.error(f"Error updating system info for host {host.name}: {e}")
+            return host
+
+    def collect_system_stats(self, host=None):
+        """Collect current system statistics"""
+        if not host:
+            host = self.get_or_create_host()
+
+        try:
+            # CPU stats
+            cpu_percent = psutil.cpu_percent(interval=1)
+            cpu_count = psutil.cpu_count()
+            try:
+                load_avg = psutil.getloadavg()
+            except AttributeError:
+                # Windows doesn't have getloadavg
+                load_avg = (None, None, None)
+
+            # Memory stats
+            memory = psutil.virtual_memory()
+            swap = psutil.swap_memory()
+
+            # Disk stats (root filesystem)
+            disk_usage = psutil.disk_usage('/')
+            disk_io = psutil.disk_io_counters()
+
+            # Network stats
+            network_io = psutil.net_io_counters()
+
+            # Boot time
+            boot_time = datetime.fromtimestamp(psutil.boot_time(), tz=timezone.get_current_timezone())
+
+            # Process count
+            process_count = len(psutil.pids())
+
+            # CPU temperature (if available)
+            cpu_temp = None
+            try:
+                temps = psutil.sensors_temperatures()
+                if 'coretemp' in temps:
+                    cpu_temp = temps['coretemp'][0].current
+                elif 'cpu_thermal' in temps:
+                    cpu_temp = temps['cpu_thermal'][0].current
+            except:
+                pass
+
+            # Create SystemStats record
+            stats_data = {
+                'host': host,
+                'cpu_percent': cpu_percent,
+                'cpu_count': cpu_count,
+                'load_avg_1m': load_avg[0],
+                'load_avg_5m': load_avg[1],
+                'load_avg_15m': load_avg[2],
+                'memory_total': memory.total,
+                'memory_available': memory.available,
+                'memory_used': memory.used,
+                'memory_free': memory.free,
+                'memory_percent': memory.percent,
+                'swap_total': swap.total,
+                'swap_used': swap.used,
+                'swap_free': swap.free,
+                'swap_percent': swap.percent,
+                'disk_total': disk_usage.total,
+                'disk_used': disk_usage.used,
+                'disk_free': disk_usage.free,
+                'disk_percent': (disk_usage.used / disk_usage.total) * 100,
+                'network_bytes_sent': network_io.bytes_sent,
+                'network_bytes_recv': network_io.bytes_recv,
+                'network_packets_sent': network_io.packets_sent,
+                'network_packets_recv': network_io.packets_recv,
+                'boot_time': boot_time,
+                'process_count': process_count,
+                'cpu_temperature': cpu_temp,
+            }
+
+            if disk_io:
+                stats_data.update({
+                    'disk_read_bytes': disk_io.read_bytes,
+                    'disk_write_bytes': disk_io.write_bytes,
+                    'disk_read_count': disk_io.read_count,
+                    'disk_write_count': disk_io.write_count,
+                })
+
+            system_stats = SystemStats.objects.create(**stats_data)
+            logger.info(f"Collected system stats for host {host.name}")
+            return system_stats
+
+        except Exception as e:
+            logger.error(f"Error collecting system stats for host {host.name}: {e}")
+            return None
+
+    def collect_top_processes(self, host=None, limit=10):
+        """Collect information about top processes by CPU usage"""
+        if not host:
+            host = self.get_or_create_host()
+
+        try:
+            processes = []
+            for proc in psutil.process_iter(['pid', 'name', 'username', 'cpu_percent',
+                                           'memory_percent', 'memory_info', 'status',
+                                           'create_time', 'cmdline']):
+                try:
+                    info = proc.info
+                    if info['cpu_percent'] is None:
+                        continue
+
+                    process_data = {
+                        'host': host,
+                        'pid': info['pid'],
+                        'name': info['name'] or '',
+                        'username': info['username'] or '',
+                        'cpu_percent': info['cpu_percent'],
+                        'memory_percent': info['memory_percent'],
+                        'status': info['status'] or '',
+                        'cmdline': ' '.join(info['cmdline'] or [])[:500],  # Limit cmdline length
+                    }
+
+                    if info['memory_info']:
+                        process_data.update({
+                            'memory_rss': info['memory_info'].rss,
+                            'memory_vms': info['memory_info'].vms,
+                        })
+
+                    if info['create_time']:
+                        process_data['create_time'] = datetime.fromtimestamp(
+                            info['create_time'], tz=timezone.get_current_timezone()
+                        )
+
+                    processes.append(process_data)
+
+                except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
+                    continue
+
+            # Sort by CPU usage and take top processes
+            processes.sort(key=lambda x: x['cpu_percent'], reverse=True)
+            top_processes = processes[:limit]
+
+            # Create ProcessStats records
+            process_stats = []
+            for proc_data in top_processes:
+                process_stat = ProcessStats.objects.create(**proc_data)
+                process_stats.append(process_stat)
+
+            logger.info(f"Collected top {len(process_stats)} processes for host {host.name}")
+            return process_stats
+
+        except Exception as e:
+            logger.error(f"Error collecting process stats for host {host.name}: {e}")
+            return []

@@ -73,21 +73,82 @@ def sync_remote_host(self, host_id):
 
 
 @shared_task(bind=True, ignore_result=True)
+def collect_system_stats(self):
+    """
+    Collect system statistics for the local host.
+    This task runs every 5 minutes via Celery Beat.
+    """
+    try:
+        service = DockerMonitoringService()
+
+        # Update host system info (less frequently)
+        host = service.update_host_system_info()
+
+        # Collect current system stats
+        system_stats = service.collect_system_stats(host)
+
+        if system_stats:
+            logger.info(f"Task {self.request.id}: Collected system stats for host {host.name}")
+            return f"Collected system stats for host {host.name}"
+        else:
+            logger.warning(f"Task {self.request.id}: Failed to collect system stats")
+            return "Failed to collect system stats"
+
+    except Exception as e:
+        logger.error(f"Task {self.request.id} failed: {str(e)}")
+        raise
+
+
+@shared_task(bind=True, ignore_result=True)
+def collect_process_stats(self, limit=10):
+    """
+    Collect top process statistics for the local host.
+    This task runs every 10 minutes via Celery Beat.
+    """
+    try:
+        service = DockerMonitoringService()
+        host = service.get_or_create_host()
+
+        # Collect top processes
+        process_stats = service.collect_top_processes(host, limit)
+
+        logger.info(f"Task {self.request.id}: Collected {len(process_stats)} process stats for host {host.name}")
+        return f"Collected {len(process_stats)} process stats for host {host.name}"
+
+    except Exception as e:
+        logger.error(f"Task {self.request.id} failed: {str(e)}")
+        raise
+
+
+@shared_task(bind=True, ignore_result=True)
 def cleanup_old_stats(self, days=7):
     """
-    Clean up old container stats older than specified days.
+    Clean up old container and system stats older than specified days.
     """
     try:
         from datetime import timedelta
-        from .models import ContainerStats
+        from .models import ContainerStats, SystemStats, ProcessStats
 
         cutoff_date = timezone.now() - timedelta(days=days)
-        deleted_count, _ = ContainerStats.objects.filter(
+
+        # Clean up container stats
+        container_deleted, _ = ContainerStats.objects.filter(
             timestamp__lt=cutoff_date
         ).delete()
 
-        logger.info(f"Task {self.request.id}: Cleaned up {deleted_count} old stats records")
-        return f"Cleaned up {deleted_count} old stats records"
+        # Clean up system stats
+        system_deleted, _ = SystemStats.objects.filter(
+            timestamp__lt=cutoff_date
+        ).delete()
+
+        # Clean up process stats
+        process_deleted, _ = ProcessStats.objects.filter(
+            timestamp__lt=cutoff_date
+        ).delete()
+
+        total_deleted = container_deleted + system_deleted + process_deleted
+        logger.info(f"Task {self.request.id}: Cleaned up {total_deleted} old stats records")
+        return f"Cleaned up {total_deleted} old stats records"
 
     except Exception as e:
         logger.error(f"Task {self.request.id} failed: {str(e)}")
