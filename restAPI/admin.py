@@ -11,7 +11,7 @@ admin.site.register(Token)
 class CustomUserAdmin(UserAdmin):
     model = CustomUser
     list_display = ('email', 'phone', 'display_name', 'is_staff', 'is_active')
-    list_filter = ('is_staff', 'is_active', 'city', 'country', 'dark_mode', 'two_factor_enabled')
+    list_filter = ('is_staff', 'is_active', 'city', 'country', 'theme', 'two_factor_enabled')
     search_fields = ('email', 'display_name', 'phone', 'username', 'clerk_user_id')
     ordering = ('email',)
 
@@ -25,7 +25,7 @@ class CustomUserAdmin(UserAdmin):
         ('Clerk Info', {'fields': (
             'clerk_user_id', 'has_image', 'two_factor_enabled',
         )}),
-        ('Preferences', {'fields': ('dark_mode',)}),
+        ('Preferences', {'fields': ('theme',)}),
         ('Permissions', {'fields': ('is_active', 'is_staff', 'is_superuser', 'groups', 'user_permissions')}),
         ('Important dates', {'fields': ('last_login', 'date_joined')}),
     )

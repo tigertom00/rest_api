@@ -53,7 +53,13 @@ class CustomUser(AbstractUser):
     profile_picture = models.ImageField(
         upload_to='profile_image', default='default/profile.png')
     clerk_profile_image_url = models.URLField(blank=True, null=True)
-    dark_mode = models.BooleanField(default=False)
+    theme = models.CharField(max_length=20, choices=[
+        ('light', 'Light'),
+        ('dark', 'Dark'),
+        ('pink', 'Pink'),
+        ('purple', 'Purple'),
+        ('system', 'System'),
+    ], default='dark')
     clerk_user_id = models.CharField(max_length=255, blank=True, null=True)  
     has_image = models.BooleanField(default=False)
     two_factor_enabled = models.BooleanField(default=False)
