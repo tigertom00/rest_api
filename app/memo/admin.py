@@ -4,7 +4,7 @@ from .models import Leverandorer, Matriell, Jobber, JobbMatriell, JobberImage, J
 
 @admin.register(Leverandorer)
 class LeverandorerAdmin(admin.ModelAdmin):
-    list_display = ("id", "name", "manufacturer_code", "url", "created_at", "updated_at")
+    list_display = ("id", "name", "manufacturer_code", "website_url", "created_at", "updated_at")
     search_fields = ("name", "manufacturer_code")
     list_filter = ("manufacturer_code",)
 
@@ -13,39 +13,36 @@ class LeverandorerAdmin(admin.ModelAdmin):
 class MatriellAdmin(admin.ModelAdmin):
     list_display = (
         "id", "el_nr", "tittel", "leverandor", "category", "approved",
-        "discontinued", "favorites", "created_at", "updated_at"
+        "discontinued", "in_stock", "created_at", "updated_at"
     )
     search_fields = (
         "el_nr", "tittel", "ean_number", "article_number",
-        "norwegian_description", "english_description"
+        "norwegian_description", "english_description", "etim_class"
     )
     list_filter = (
-        "leverandor", "category", "approved", "discontinued", "favorites"
+        "leverandor", "category", "approved", "discontinued", "in_stock"
     )
     readonly_fields = ("created_at", "updated_at")
 
     fieldsets = (
-        ("Basic Information", {
-            "fields": ("el_nr", "tittel", "info", "leverandor", "image", "favorites")
+        ("Core Information", {
+            "fields": ("el_nr", "tittel", "info", "leverandor")
         }),
         ("Product Details", {
             "fields": (
-                "ean_number", "article_number", "order_number", "type_designation",
-                "category", "approved", "discontinued"
+                "ean_number", "article_number", "category", "etim_class",
+                "approved", "discontinued", "in_stock"
             )
         }),
         ("Descriptions", {
-            "fields": ("norwegian_description", "english_description", "german_description")
+            "fields": ("norwegian_description", "english_description")
         }),
-        ("Pricing & Specifications", {
-            "fields": (
-                "list_price", "net_price", "discount_factor", "vat", "weight",
-                "unit_per_package", "height", "width", "depth"
-            ),
+        ("Technical Specifications", {
+            "fields": ("height", "width", "depth", "weight"),
             "classes": ("collapse",)
         }),
-        ("Technical", {
-            "fields": ("datasheet_url",),
+        ("Documents & Media", {
+            "fields": ("datasheet_url", "image_url"),
             "classes": ("collapse",)
         }),
         ("Timestamps", {

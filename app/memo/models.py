@@ -7,60 +7,62 @@ User = get_user_model()
 
 
 class Leverandorer(models.Model):
-    name = models.CharField(max_length=64, blank=True)
-    manufacturer_code = models.CharField(max_length=30, blank=True, null=True)
-    url = models.URLField(validators=[URLValidator()], blank=True)
+    name = models.CharField(max_length=100, unique=True)
+    manufacturer_code = models.CharField(max_length=20, blank=True, null=True)
+    website_url = models.URLField(blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        verbose_name = 'Leverandor'
-        verbose_name_plural = 'Leverandorer'
+        verbose_name = 'Leverandør'
+        verbose_name_plural = 'Leverandører'
 
     def __str__(self):
         return self.name
 
 
 class Matriell(models.Model):
-    el_nr = models.CharField(max_length=32, unique=True, blank=True, null=True)
-    tittel = models.CharField(max_length=255, blank=True)
-    info = models.CharField(max_length=256, blank=True)
-    leverandor = models.ForeignKey(
-        Leverandorer, on_delete=models.CASCADE, blank=True, null=True
-    )
-    image = models.ImageField(
-        upload_to='matriell_image', default='default/matriell.png', blank=True, null=True
-    )
-    favorites = models.BooleanField(default=False)
+    # Core identification
+    el_nr = models.CharField(max_length=32, unique=True)
+    tittel = models.CharField(max_length=255)
+    leverandor = models.ForeignKey(Leverandorer, on_delete=models.CASCADE)
 
-    # New fields from Norwegian electrical database
+    # Product details
+    info = models.TextField(blank=True)  # Technical description
     ean_number = models.CharField(max_length=32, blank=True, null=True)
-    article_number = models.CharField(max_length=32, blank=True, null=True)
-    order_number = models.CharField(max_length=100, blank=True, null=True)
-    type_designation = models.CharField(max_length=255, blank=True, null=True)
+    article_number = models.CharField(max_length=50, blank=True, null=True)
+
+    # Descriptions
     norwegian_description = models.CharField(max_length=255, blank=True, null=True)
     english_description = models.CharField(max_length=255, blank=True, null=True)
-    german_description = models.CharField(max_length=255, blank=True, null=True)
-    category = models.CharField(max_length=10, blank=True, null=True)
-    datasheet_url = models.CharField(max_length=200, blank=True, null=True)
-    list_price = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)
-    net_price = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)
-    discount_factor = models.CharField(max_length=4, blank=True, null=True)
-    vat = models.CharField(max_length=5, blank=True, null=True)
-    weight = models.CharField(max_length=8, blank=True, null=True)
-    unit_per_package = models.CharField(max_length=5, blank=True, null=True)
+
+    # Technical specifications
     height = models.CharField(max_length=20, blank=True, null=True)
     width = models.CharField(max_length=20, blank=True, null=True)
     depth = models.CharField(max_length=20, blank=True, null=True)
-    approved = models.BooleanField(default=False)
-    discontinued = models.BooleanField(default=False)
+    weight = models.CharField(max_length=20, blank=True, null=True)
 
+    # Classification
+    etim_class = models.CharField(max_length=200, blank=True, null=True)
+    category = models.CharField(max_length=20, blank=True, null=True)  # EC code
+
+    # Documents and media
+    datasheet_url = models.URLField(blank=True, null=True)
+    image_url = models.URLField(blank=True, null=True)
+
+    # Status
+    approved = models.BooleanField(default=True)
+    discontinued = models.BooleanField(default=False)
+    in_stock = models.BooleanField(default=True)
+
+    # Timestamps
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         verbose_name = 'Matriell'
         verbose_name_plural = 'Matriell'
+        ordering = ['el_nr']
 
     def clean(self):
         if self.el_nr and Matriell.objects.filter(el_nr=self.el_nr).exclude(pk=self.pk).exists():
@@ -71,7 +73,7 @@ class Matriell(models.Model):
         super().save(*args, **kwargs)
 
     def __str__(self):
-        return self.tittel
+        return f"{self.el_nr} - {self.tittel}"
 
 
 class Jobber(models.Model):

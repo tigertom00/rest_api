@@ -1,0 +1,160 @@
+{
+  "name": "EFObasen Enhanced Product Scraper",
+  "nodes": [
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "el_nr",
+              "value": "1233700"
+            }
+          ]
+        }
+      },
+      "id": "manual-trigger",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "url": "=https://efobasen.efo.no/produkt/{{ $json.el_nr }}",
+        "options": {
+          "browserWSEndpoint": "ws://chrome:3000",
+          "timeout": 30000
+        }
+      },
+      "id": "load-product-page",
+      "name": "Load Product Page",
+      "type": "n8n-nodes-puppeteer.puppeteer",
+      "typeVersion": 1,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst page = items[0].json.page;\nconst originalInput = $input.first().json;\n\ntry {\n  console.log('Starting EFObasen product extraction for:', originalInput.el_nr);\n  \n  // Extended wait for Angular SPA to fully load\n  const maxWaitTime = 20000;\n  const startTime = Date.now();\n  let pageLoaded = false;\n  let loadAttempts = 0;\n  \n  while (!pageLoaded && (Date.now() - startTime) < maxWaitTime) {\n    loadAttempts++;\n    console.log(`Load attempt ${loadAttempts}...`);\n    \n    const content = await page.evaluate(() => {\n      const body = document.body;\n      const text = body.textContent || '';\n      const title = document.title || '';\n      \n      // Check for various loading states\n      const hasPlaceholders = document.querySelectorAll('.placeholder, .placeholder-glow, .skeleton').length > 0;\n      const hasSpinners = document.querySelectorAll('.spinner, .loading').length > 0;\n      const hasContent = text.length > 8000; // Substantial content\n      const hasError404 = text.includes('404') || text.includes('Siden ble ikke funnet') || title.includes('404');\n      const hasProductData = text.includes('ELNUMMER') || text.includes('Produktinfo') || text.includes('VAREMERKE');\n      \n      return {\n        hasPlaceholders,\n        hasSpinners,\n        hasContent,\n        hasError404,\n        hasProductData,\n        textLength: text.length,\n        title: title\n      };\n    });\n    \n    // Page is loaded if we have product data and no loading indicators\n    if ((content.hasProductData && !content.hasPlaceholders && !content.hasSpinners) || content.hasError404) {\n      pageLoaded = true;\n      console.log('Page loaded successfully with content length:', content.textLength);\n    } else {\n      console.log(`Still loading... Content: ${content.textLength} chars, Product data: ${content.hasProductData}, Placeholders: ${content.hasPlaceholders}`);\n      await new Promise(resolve => setTimeout(resolve, 2000));\n    }\n  }\n  \n  if (!pageLoaded) {\n    console.log('Page loading timeout reached');\n  }\n  \n  // Enhanced product data extraction\n  const productData = await page.evaluate((el_nr) => {\n    const data = {\n      found_product: false,\n      el_nr: el_nr,\n      basic_info: {},\n      descriptions: {},\n      specifications: {},\n      commercial: {},\n      packaging: {},\n      documents: {},\n      media: {},\n      external_links: {},\n      raw_text_extraction: []\n    };\n    \n    const pageText = document.body.textContent || '';\n    const pageTitle = document.title || '';\n    \n    // Check for error page\n    if (pageText.includes('404') || pageText.includes('Siden ble ikke funnet') || pageTitle.includes('404')) {\n      data.page_type = 'error_404';\n      return data;\n    }\n    \n    // Check if we have substantial product content\n    if (pageText.length > 3000 && (pageText.includes('ELNUMMER') || pageText.includes('Produktinfo'))) {\n      data.found_product = true;\n      data.page_type = 'product_page';\n      \n      console.log('Extracting product information...');\n      \n      // Extract basic product information\n      const textLines = pageText.split('\\n').map(line => line.trim()).filter(line => line.length > 3);\n      data.raw_text_extraction = textLines.slice(0, 100);\n      \n      // Extract title from multiple possible locations\n      const titleSelectors = ['h1', 'h2', '.product-title', '[class*=\"title\"]'];\n      for (const selector of titleSelectors) {\n        const element = document.querySelector(selector);\n        if (element && element.textContent && element.textContent.trim().length > 3) {\n          data.basic_info.title = element.textContent.trim();\n          break;\n        }\n      }\n      \n      // If no title from selectors, try to extract from visible text\n      if (!data.basic_info.title) {\n        for (const line of textLines.slice(0, 20)) {\n          // Look for product names (usually uppercase and descriptive)\n          if (line.length > 5 && line.length < 80 && /[A-ZÆØÅ]/.test(line) && \n              !line.includes(':') && !line.includes('http') && \n              !line.includes('ELNUMMER') && !line.includes('Produktinfo')) {\n            data.basic_info.title = line;\n            break;\n          }\n        }\n      }\n      \n      // Extract structured information from text patterns\n      for (let i = 0; i < textLines.length - 1; i++) {\n        const line = textLines[i];\n        const nextLine = textLines[i + 1];\n        \n        // Extract key-value pairs\n        if (line.endsWith(':') && nextLine && nextLine.length > 0 && nextLine.length < 200) {\n          const key = line.replace(':', '').trim().toLowerCase();\n          const value = nextLine.trim();\n          \n          // Map to appropriate data structure\n          if (key.includes('elnummer') || key.includes('el-nr')) {\n            data.basic_info.el_nr = value;\n          } else if (key.includes('varemerke') || key.includes('manufacturer') || key.includes('produsent')) {\n            data.basic_info.manufacturer = value;\n          } else if (key.includes('produktnummer') || key.includes('artikkel')) {\n            data.basic_info.manufacturer_part_number = value;\n          } else if (key.includes('gtin') || key.includes('ean')) {\n            data.basic_info.ean = value;\n          } else if (key.includes('etim')) {\n            data.basic_info.etim_class = value;\n          } else if (key.includes('høyde') || key.includes('height')) {\n            data.specifications.height = value;\n          } else if (key.includes('bredde') || key.includes('width')) {\n            data.specifications.width = value;\n          } else if (key.includes('lengde') || key.includes('dybde') || key.includes('length') || key.includes('depth')) {\n            data.specifications.depth = value;\n          } else if (key.includes('vekt') || key.includes('weight')) {\n            data.specifications.weight = value;\n          } else if (key.includes('diameter')) {\n            data.specifications.diameter = value;\n          } else if (key.includes('farge') || key.includes('color')) {\n            data.specifications.color = value;\n          } else if (key.includes('material')) {\n            data.specifications.material = value;\n          } else if (key.includes('beskrivelse') || key.includes('description')) {\n            if (key.includes('engelsk') || key.includes('english')) {\n              data.descriptions.english_long = value;\n            } else {\n              data.descriptions.norwegian_long = value;\n            }\n          } else if (key.includes('teknisk beskrivelse')) {\n            data.descriptions.technical_description_no = value;\n          } else if (key.includes('lagerføres') || key.includes('på lager')) {\n            data.commercial.in_stock = value.toLowerCase().includes('ja') || value.toLowerCase().includes('yes');\n          }\n        }\n        \n        // Look for API endpoints in href attributes\n        const apiMatches = line.match(/\\/API\\/Produktfiler\\/Skalert\\?id=(\\d+)&w=(\\d+)&h=(\\d+)&m=(\\d+)/g);\n        if (apiMatches) {\n          for (const match of apiMatches) {\n            const params = new URLSearchParams(match.split('?')[1]);\n            const fileId = params.get('id');\n            const mode = params.get('m');\n            \n            // Categorize by mode (5=full images, 3=thumbnails/documents)\n            if (mode === '5') {\n              data.media.main_image = match;\n            } else if (mode === '3') {\n              if (!data.media.thumbnail_image) {\n                data.media.thumbnail_image = match;\n              }\n              // Try to determine document type from context\n              const contextLines = textLines.slice(Math.max(0, i-2), i+3).join(' ').toLowerCase();\n              if (contextLines.includes('datasheet') || contextLines.includes('produktdata')) {\n                data.documents.product_datasheet = match;\n              } else if (contextLines.includes('rohs')) {\n                data.documents.rohs_document = match;\n              } else if (contextLines.includes('reach')) {\n                data.documents.reach_document = match;\n              } else if (contextLines.includes('ce') || contextLines.includes('samsvar')) {\n                data.documents.ce_declaration = match;\n              } else if (contextLines.includes('manual') || contextLines.includes('bruker')) {\n                data.documents.user_manual = match;\n              } else if (contextLines.includes('fdv')) {\n                data.documents.fdv_manual = match;\n              }\n            }\n          }\n        }\n      }\n      \n      // Extract images from img elements as fallback\n      if (!data.media.main_image) {\n        const images = document.querySelectorAll('img');\n        for (const img of images) {\n          if (img.src && \n              !img.src.includes('logo') && \n              !img.src.includes('icon') && \n              !img.src.includes('spinner') &&\n              (img.src.includes('http') || img.src.includes('/API/'))) {\n            data.media.main_image = img.src.includes('http') ? img.src : img.src;\n            break;\n          }\n        }\n      }\n      \n      // Extract external links\n      const links = document.querySelectorAll('a[href*=\"http\"]');\n      for (const link of links) {\n        const href = link.href;\n        const text = link.textContent.trim().toLowerCase();\n        \n        if (href.includes('abb.com') || href.includes('schneider') || href.includes('siemens')) {\n          data.external_links.manufacturer_product_page = href;\n          break;\n        }\n      }\n    }\n    \n    return data;\n  }, originalInput.el_nr);\n  \n  const result = {\n    scraping_result: {\n      el_nr: originalInput.el_nr,\n      success: productData.found_product,\n      scraped_at: new Date().toISOString(),\n      source_url: 'https://efobasen.efo.no',\n      product_url: `https://efobasen.efo.no/produkt/${originalInput.el_nr}`,\n      page_load_time_ms: Date.now() - startTime,\n      page_type: productData.page_type || 'unknown'\n    },\n    product: productData.found_product ? productData : null,\n    api_endpoints_discovered: {\n      product_files: 'https://efobasen.efo.no/API/Produktfiler/Skalert',\n      parameters: {\n        id: 'File ID (extracted from product page)',\n        w: 'Width in pixels',\n        h: 'Height in pixels',\n        m: 'Mode (5=full image, 3=thumbnail/document)'\n      },\n      note: 'All files returned as JPEG images regardless of original format'\n    }\n  };\n  \n  return [{ json: result }];\n  \n} catch (error) {\n  console.error('Error in enhanced scraping:', error.message);\n  return [{\n    json: {\n      scraping_result: {\n        el_nr: originalInput.el_nr,\n        success: false,\n        error: error.message,\n        source_url: 'https://efobasen.efo.no',\n        scraped_at: new Date().toISOString()\n      }\n    }\n  }];\n}"
+      },
+      "id": "enhanced-extract-data",
+      "name": "Enhanced Extract Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.scraping_result.success }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "check-success",
+      "name": "Check Success",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Test discovered API endpoints\nconst input = $input.first().json;\nconst product = input.product;\n\nif (!product || !product.media) {\n  return [{ json: { ...input, api_test_results: { error: 'No API endpoints found to test' } } }];\n}\n\nconst testResults = {\n  tested_endpoints: [],\n  working_endpoints: 0,\n  failed_endpoints: 0\n};\n\n// Function to test an API endpoint\nconst testEndpoint = async (path, description) => {\n  if (!path) return null;\n  \n  const fullUrl = path.startsWith('http') ? path : `https://efobasen.efo.no${path}`;\n  \n  try {\n    const response = await $http.get(fullUrl, { timeout: 10000 });\n    const result = {\n      endpoint: path,\n      description: description,\n      full_url: fullUrl,\n      status: response.status,\n      content_type: response.headers['content-type'] || 'unknown',\n      content_length: response.headers['content-length'] || 'unknown',\n      working: response.status === 200\n    };\n    \n    testResults.tested_endpoints.push(result);\n    if (result.working) {\n      testResults.working_endpoints++;\n    } else {\n      testResults.failed_endpoints++;\n    }\n    \n    return result;\n  } catch (error) {\n    const result = {\n      endpoint: path,\n      description: description,\n      full_url: fullUrl,\n      error: error.message,\n      working: false\n    };\n    \n    testResults.tested_endpoints.push(result);\n    testResults.failed_endpoints++;\n    \n    return result;\n  }\n};\n\n// Test media endpoints\nif (product.media.main_image) {\n  await testEndpoint(product.media.main_image, 'Main product image');\n}\nif (product.media.thumbnail_image) {\n  await testEndpoint(product.media.thumbnail_image, 'Thumbnail image');\n}\n\n// Test document endpoints\nif (product.documents) {\n  for (const [docType, path] of Object.entries(product.documents)) {\n    await testEndpoint(path, `Document: ${docType}`);\n  }\n}\n\nconst enhancedResult = {\n  ...input,\n  api_test_results: testResults,\n  integration_ready: testResults.working_endpoints > 0\n};\n\nreturn [{ json: enhancedResult }];"
+      },
+      "id": "test-api-endpoints",
+      "name": "Test API Endpoints",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1120, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Format final structured output for Django integration\nconst input = $input.first().json;\nconst scrapingResult = input.scraping_result;\nconst product = input.product;\nconst apiResults = input.api_test_results;\n\nconst output = {\n  scraping_result: scrapingResult,\n  product: product,\n  mapping_to_django_models: {\n    leverandorer: {\n      name: product?.basic_info?.manufacturer || '',\n      manufacturer_code: (product?.basic_info?.manufacturer || '').substring(0, 10).toUpperCase()\n    },\n    matriell: {\n      el_nr: scrapingResult.el_nr,\n      tittel: product?.basic_info?.title || '',\n      info: product?.descriptions?.technical_description_no || product?.descriptions?.norwegian_long || '',\n      leverandor: product?.basic_info?.manufacturer || '',\n      ean_number: product?.basic_info?.ean || '',\n      article_number: product?.basic_info?.manufacturer_part_number || '',\n      norwegian_description: product?.descriptions?.norwegian_long || '',\n      english_description: product?.descriptions?.english_long || '',\n      category: product?.basic_info?.etim_class || '',\n      datasheet_url: product?.documents?.product_datasheet ? \n        `https://efobasen.efo.no${product.documents.product_datasheet}` : '',\n      height: product?.specifications?.height || '',\n      width: product?.specifications?.width || '',\n      depth: product?.specifications?.depth || '',\n      weight: product?.specifications?.weight || '',\n      approved: scrapingResult.success,\n      discontinued: false,\n      in_stock: product?.commercial?.in_stock !== false\n    }\n  },\n  api_endpoints_tested: apiResults || null,\n  integration_instructions: {\n    django_command: `python manage.py import_efobasen_data --el-nr ${scrapingResult.el_nr}`,\n    bulk_import: 'python manage.py import_efobasen_data --download-images',\n    rate_limiting: 'Add --rate-limit 2.0 for slower requests to avoid blocking'\n  }\n};\n\nreturn output;"
+      },
+      "id": "format-django-output",
+      "name": "Format Django Output",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1340, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Return error information\nconst input = $input.first().json;\n\nconst output = {\n  scraping_result: input.scraping_result,\n  error: 'Product not found or scraping failed',\n  debug_info: {\n    attempted_url: `https://efobasen.efo.no/produkt/${input.scraping_result.el_nr}`,\n    page_type: input.product?.page_type || 'unknown',\n    suggestions: [\n      'Verify the electrical number is correct',\n      'Check if the product exists on EFObasen.efo.no',\n      'Try again later if this was a temporary issue'\n    ]\n  }\n};\n\nreturn output;"
+      },
+      "id": "format-error-output",
+      "name": "Format Error Output",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1120, 400]
+    }
+  ],
+  "connections": {
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Load Product Page",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Load Product Page": {
+      "main": [
+        [
+          {
+            "node": "Enhanced Extract Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enhanced Extract Data": {
+      "main": [
+        [
+          {
+            "node": "Check Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Success": {
+      "main": [
+        [
+          {
+            "node": "Test API Endpoints",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Format Error Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Test API Endpoints": {
+      "main": [
+        [
+          {
+            "node": "Format Django Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

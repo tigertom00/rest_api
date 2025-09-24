@@ -70,6 +70,7 @@ The project requires a `.env` file with:
 - Database credentials (MySQL for production)
 - `CLERK_SECRET_KEY` and `CLERK_WEBHOOK_KEY`: For Clerk integration
 - Email configuration for notifications
+- `CLAUDE_EMAIL`, `CLAUDE_PASSWORD`, `CLAUDE_TOKEN`: Claude authentication credentials
 
 ## Testing & Quality
 
