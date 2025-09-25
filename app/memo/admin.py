@@ -13,14 +13,14 @@ class LeverandorerAdmin(admin.ModelAdmin):
 class MatriellAdmin(admin.ModelAdmin):
     list_display = (
         "id", "el_nr", "tittel", "leverandor", "category", "approved",
-        "discontinued", "in_stock", "created_at", "updated_at"
+        "discontinued", "in_stock", "favorites", "created_at", "updated_at"
     )
     search_fields = (
         "el_nr", "tittel", "ean_number", "article_number",
         "norwegian_description", "english_description", "etim_class"
     )
     list_filter = (
-        "leverandor", "category", "approved", "discontinued", "in_stock"
+        "leverandor", "category", "approved", "discontinued", "in_stock", "favorites"
     )
     readonly_fields = ("created_at", "updated_at")
 
@@ -31,7 +31,7 @@ class MatriellAdmin(admin.ModelAdmin):
         ("Product Details", {
             "fields": (
                 "ean_number", "article_number", "category", "etim_class",
-                "approved", "discontinued", "in_stock"
+                "approved", "discontinued", "in_stock", "favorites"
             )
         }),
         ("Descriptions", {

@@ -54,6 +54,7 @@ class Matriell(models.Model):
     approved = models.BooleanField(default=True)
     discontinued = models.BooleanField(default=False)
     in_stock = models.BooleanField(default=True)
+    favorites = models.BooleanField(default=False)
 
     # Timestamps
     created_at = models.DateTimeField(auto_now_add=True)
