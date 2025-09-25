@@ -1,15 +1,22 @@
 # apps/blog/views.py
-from rest_framework import viewsets, mixins, status
+from django.db import IntegrityError
+from django.shortcuts import get_object_or_404
+from rest_framework import status, viewsets
+from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-from rest_framework.decorators import action
 from rest_framework.views import APIView
-from django.shortcuts import get_object_or_404
-from django.db import IntegrityError
 
-from .models import BlogPost, SiteSettings, PostImage, PostAudio, PostYouTube, Tag
-from .serializers import BlogPostSerializer, BlogPostWriteSerializer, PostImageUploadSerializer, PostAudioUploadSerializer, PostYouTubeSerializer, TagSerializer
+from .models import BlogPost, PostAudio, PostImage, PostYouTube, SiteSettings, Tag
 from .permissions import IsOwnerOrFeaturedReadOnly
+from .serializers import (
+    BlogPostSerializer,
+    BlogPostWriteSerializer,
+    PostAudioUploadSerializer,
+    PostImageUploadSerializer,
+    PostYouTubeSerializer,
+    TagSerializer,
+)
 
 
 class TagViewSet(viewsets.ModelViewSet):
@@ -57,28 +64,30 @@ class PostYouTubeViewSet(viewsets.ModelViewSet):
         serializer.save(post=post)
 
 
-
 class BlogPostViewSet(viewsets.ModelViewSet):
-    """ 
+    """
     Routes:
       - /api/posts/      -> Auth users: list your posts. Unauth: list featured author's published posts.
       - /api/posts/:id/  -> Detail with the same visibility rules.
       - /api/posts/public/ -> Explicit landing-page feed (unauth friendly).
     """
+
     permission_classes = [IsOwnerOrFeaturedReadOnly]
 
     def get_queryset(self):
-        q = BlogPost.objects.select_related("author").prefetch_related("tags", "images", "audio_files", "youtube_videos")
+        q = BlogPost.objects.select_related("author").prefetch_related(
+            "tags", "images", "audio_files", "youtube_videos"
+        )
         if self.request.user.is_authenticated:
-            # Staff users can see all posts, regular users only see their own
-            if self.request.user.is_staff:
-                return q
+            # Authenticated users only see their own posts
             return q.filter(author=self.request.user)
         # unauth: featured + published
         settings_row = SiteSettings.objects.first()
         if not settings_row or not settings_row.featured_author_id:
             return q.none()
-        return q.filter(author_id=settings_row.featured_author_id, status=BlogPost.Status.PUBLISHED)
+        return q.filter(
+            author_id=settings_row.featured_author_id, status=BlogPost.Status.PUBLISHED
+        )
 
     def get_serializer_class(self):
         if self.request.method in ("POST", "PUT", "PATCH"):
@@ -89,10 +98,12 @@ class BlogPostViewSet(viewsets.ModelViewSet):
         try:
             return super().create(request, *args, **kwargs)
         except IntegrityError as e:
-            if 'slug' in str(e):
+            if "slug" in str(e):
                 return Response(
-                    {'error': 'A blog post with this title already exists. Please use a different title.'},
-                    status=status.HTTP_400_BAD_REQUEST
+                    {
+                        "error": "A blog post with this title already exists. Please use a different title."
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
                 )
             raise
 
@@ -104,21 +115,25 @@ class BlogPostViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=["get"], url_path="public", permission_classes=[])
     def public(self, request):
-        #Landing page feed: always returns featured author's published posts.
+        # Landing page feed: always returns featured author's published posts.
         settings_row = SiteSettings.objects.first()
         qs = BlogPost.objects.none()
         if settings_row and settings_row.featured_author_id:
-            qs = BlogPost.objects.filter(
-                author_id=settings_row.featured_author_id,
-                status=BlogPost.Status.PUBLISHED
-            ).select_related("author").prefetch_related("tags", "images", "audio_files", "youtube_videos")
+            qs = (
+                BlogPost.objects.filter(
+                    author_id=settings_row.featured_author_id,
+                    status=BlogPost.Status.PUBLISHED,
+                )
+                .select_related("author")
+                .prefetch_related("tags", "images", "audio_files", "youtube_videos")
+            )
         serializer = BlogPostSerializer(qs, many=True)
         return Response(serializer.data)
 
 
-
 class BlogPostBySlugView(APIView):
     """Get blog post by slug. Uses same visibility rules as BlogPostViewSet."""
+
     permission_classes = []
 
     def get(self, request, slug):
@@ -130,14 +145,18 @@ class BlogPostBySlugView(APIView):
         else:
             # Unauthenticated: only featured author's published posts
             if not settings_row or not settings_row.featured_author_id:
-                return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
+                return Response(
+                    {"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND
+                )
             qs = BlogPost.objects.filter(
                 author_id=settings_row.featured_author_id,
                 status=BlogPost.Status.PUBLISHED,
-                slug=slug
+                slug=slug,
             )
 
-        qs = qs.select_related("author").prefetch_related("tags", "images", "audio_files", "youtube_videos")
+        qs = qs.select_related("author").prefetch_related(
+            "tags", "images", "audio_files", "youtube_videos"
+        )
         post = qs.first()
 
         if not post:
@@ -145,9 +164,3 @@ class BlogPostBySlugView(APIView):
 
         serializer = BlogPostSerializer(post)
         return Response(serializer.data)
-
-
-
-
-
-

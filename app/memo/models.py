@@ -1,21 +1,71 @@
-from django.db import models
 from django.contrib.auth import get_user_model
-from django.core.validators import URLValidator
 from django.core.exceptions import ValidationError
+from django.db import models
+from django.utils.text import slugify
 
 User = get_user_model()
 
 
-class Leverandorer(models.Model):
-    name = models.CharField(max_length=100, unique=True)
-    manufacturer_code = models.CharField(max_length=20, blank=True, null=True)
-    website_url = models.URLField(blank=True, null=True)
+class ElektriskKategori(models.Model):
+    blokknummer = models.CharField(
+        max_length=2,
+        unique=True,
+        help_text="2-digit block number (e.g., '10', '11', '12')",
+    )
+    kategori = models.CharField(
+        max_length=100, help_text="Category name (e.g., 'Kabler og ledninger')"
+    )
+    beskrivelse = models.TextField(help_text="Detailed description and examples")
+    slug = models.SlugField(
+        max_length=120, unique=True, help_text="URL-friendly version of category name"
+    )
+    etim_gruppe = models.CharField(
+        max_length=50,
+        blank=True,
+        null=True,
+        help_text="Related ETIM group code (e.g., 'EC000000')",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        verbose_name = 'Leverandør'
-        verbose_name_plural = 'Leverandører'
+        verbose_name = "Elektrisk Kategori"
+        verbose_name_plural = "Elektriske Kategorier"
+        ordering = ["blokknummer"]
+
+    def save(self, *args, **kwargs):
+        if not self.slug:
+            self.slug = slugify(self.kategori)
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.blokknummer} - {self.kategori}"
+
+
+class Leverandorer(models.Model):
+    name = models.CharField(
+        max_length=100, unique=True, help_text="Company name (maps to 'navn' in JSON)"
+    )
+    telefon = models.CharField(
+        max_length=50, blank=True, null=True, help_text="Phone number"
+    )
+    hjemmeside = models.URLField(blank=True, null=True, help_text="Website URL")
+    addresse = models.CharField(
+        max_length=200, blank=True, null=True, help_text="Address"
+    )
+    poststed = models.CharField(
+        max_length=100, blank=True, null=True, help_text="City/postal place"
+    )
+    postnummer = models.CharField(
+        max_length=20, blank=True, null=True, help_text="Postal code"
+    )
+    epost = models.EmailField(blank=True, null=True, help_text="Email address")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Leverandør"
+        verbose_name_plural = "Leverandører"
 
     def __str__(self):
         return self.name
@@ -26,29 +76,67 @@ class Matriell(models.Model):
     el_nr = models.CharField(max_length=32, unique=True)
     tittel = models.CharField(max_length=255)
     leverandor = models.ForeignKey(Leverandorer, on_delete=models.CASCADE)
+    kategori = models.ForeignKey(
+        ElektriskKategori, on_delete=models.CASCADE, null=True, blank=True
+    )
 
-    # Product details
-    info = models.TextField(blank=True)  # Technical description
-    ean_number = models.CharField(max_length=32, blank=True, null=True)
-    article_number = models.CharField(max_length=50, blank=True, null=True)
+    # Product details from EFO Basen JSON
+    varemerke = models.CharField(
+        max_length=100, blank=True, null=True, help_text="Brand/manufacturer"
+    )
+    info = models.TextField(blank=True, help_text="Technical description/ETIM info")
+    varenummer = models.CharField(
+        max_length=50, blank=True, null=True, help_text="Product number"
+    )
+    gtin_number = models.CharField(
+        max_length=32, blank=True, null=True, help_text="GTIN/EAN code"
+    )
 
     # Descriptions
-    norwegian_description = models.CharField(max_length=255, blank=True, null=True)
-    english_description = models.CharField(max_length=255, blank=True, null=True)
+    teknisk_beskrivelse = models.TextField(
+        blank=True, null=True, help_text="Detailed technical description"
+    )
+    varebetegnelse = models.CharField(
+        max_length=255, blank=True, null=True, help_text="Product designation"
+    )
 
-    # Technical specifications
-    height = models.CharField(max_length=20, blank=True, null=True)
-    width = models.CharField(max_length=20, blank=True, null=True)
-    depth = models.CharField(max_length=20, blank=True, null=True)
-    weight = models.CharField(max_length=20, blank=True, null=True)
-
-    # Classification
-    etim_class = models.CharField(max_length=200, blank=True, null=True)
-    category = models.CharField(max_length=20, blank=True, null=True)  # EC code
+    # Dimensions (using DecimalField for precise measurements)
+    hoyde = models.DecimalField(
+        max_digits=10, decimal_places=2, blank=True, null=True, help_text="Height in mm"
+    )
+    bredde = models.DecimalField(
+        max_digits=10, decimal_places=2, blank=True, null=True, help_text="Width in mm"
+    )
+    lengde = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        blank=True,
+        null=True,
+        help_text="Length/depth in mm",
+    )
+    vekt = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        blank=True,
+        null=True,
+        help_text="Weight in grams",
+    )
 
     # Documents and media
-    datasheet_url = models.URLField(blank=True, null=True)
-    image_url = models.URLField(blank=True, null=True)
+    bilder = models.JSONField(default=list, blank=True, help_text="Array of image URLs")
+    produktblad = models.URLField(
+        blank=True, null=True, help_text="Product datasheet URL"
+    )
+    produkt_url = models.URLField(
+        blank=True, null=True, help_text="Manufacturer product page URL"
+    )
+    fdv = models.URLField(blank=True, null=True, help_text="FDV document URL")
+    cpr_sertifikat = models.URLField(
+        blank=True, null=True, help_text="CPR certificate URL"
+    )
+    miljoinformasjon = models.URLField(
+        blank=True, null=True, help_text="Environmental information URL"
+    )
 
     # Status
     approved = models.BooleanField(default=True)
@@ -61,13 +149,16 @@ class Matriell(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        verbose_name = 'Matriell'
-        verbose_name_plural = 'Matriell'
-        ordering = ['el_nr']
+        verbose_name = "Matriell"
+        verbose_name_plural = "Matriell"
+        ordering = ["el_nr"]
 
     def clean(self):
-        if self.el_nr and Matriell.objects.filter(el_nr=self.el_nr).exclude(pk=self.pk).exists():
-            raise ValidationError({'el_nr': 'Dette elektronummer finnes allerede.'})
+        if (
+            self.el_nr
+            and Matriell.objects.filter(el_nr=self.el_nr).exclude(pk=self.pk).exists()
+        ):
+            raise ValidationError({"el_nr": "Dette elektronummer finnes allerede."})
 
     def save(self, *args, **kwargs):
         self.clean()
@@ -86,14 +177,17 @@ class Jobber(models.Model):
     date = models.DateTimeField(auto_now_add=True)
     ferdig = models.BooleanField(default=False)
     profile_picture = models.ImageField(
-        upload_to='jobb_profile_image', default='default/jobb_profile.png', blank=True, null=True
+        upload_to="jobb_profile_image",
+        default="default/jobb_profile.png",
+        blank=True,
+        null=True,
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        verbose_name = 'Jobb'
-        verbose_name_plural = 'Jobber'
+        verbose_name = "Jobb"
+        verbose_name_plural = "Jobber"
 
     @property
     def total_hours(self):
@@ -106,22 +200,23 @@ class Jobber(models.Model):
 class JobbMatriell(models.Model):
     matriell = models.ForeignKey(Matriell, on_delete=models.CASCADE)
     antall = models.IntegerField(default=1)
-    jobb = models.ForeignKey(Jobber, on_delete=models.CASCADE, related_name="jobbmatriell")
+    jobb = models.ForeignKey(
+        Jobber, on_delete=models.CASCADE, related_name="jobbmatriell"
+    )
     transf = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        verbose_name = 'JobbMatriell'
-        verbose_name_plural = 'JobbMatriell'
+        verbose_name = "JobbMatriell"
+        verbose_name_plural = "JobbMatriell"
 
     def __str__(self):
         return f"{self.antall}x {self.matriell.tittel} for {self.jobb.tittel}"
 
+
 class JobberImage(models.Model):
-    jobb = models.ForeignKey(
-        "Jobber", on_delete=models.CASCADE, related_name="images"
-    )
+    jobb = models.ForeignKey("Jobber", on_delete=models.CASCADE, related_name="images")
     image = models.ImageField(upload_to="jobb_images/")
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -130,17 +225,17 @@ class JobberImage(models.Model):
 
 
 class JobberFile(models.Model):
-    jobb = models.ForeignKey(
-        "Jobber", on_delete=models.CASCADE, related_name="files"
-    )
+    jobb = models.ForeignKey("Jobber", on_delete=models.CASCADE, related_name="files")
     file = models.FileField(upload_to="jobb_files/")
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
         return f"File for {self.jobb.tittel}"
-    
+
+
 class Timeliste(models.Model):
     """Model definition for Timeliste."""
+
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     jobb = models.ForeignKey(Jobber, on_delete=models.CASCADE)
     beskrivelse = models.CharField(max_length=256, blank=True)
@@ -154,8 +249,8 @@ class Timeliste(models.Model):
     class Meta:
         """Meta definition for Timeliste."""
 
-        verbose_name = 'timeliste'
-        verbose_name_plural = 'timelister'
+        verbose_name = "timeliste"
+        verbose_name_plural = "timelister"
 
     def __str__(self):
         """Unicode representation of Timeliste."""

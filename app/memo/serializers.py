@@ -1,11 +1,87 @@
 from rest_framework import serializers
-from .models import Leverandorer, Matriell, Jobber, JobbMatriell, JobberImage, JobberFile, Timeliste
+
+from .models import (
+    ElektriskKategori,
+    Jobber,
+    JobberFile,
+    JobberImage,
+    JobbMatriell,
+    Leverandorer,
+    Matriell,
+    Timeliste,
+)
+
+
+class LeverandorField(serializers.Field):
+    """
+    Custom field that accepts either a string (leverandor name) or dict (full leverandor data)
+    """
+
+    def to_internal_value(self, data):
+        # Just return the data as-is, we'll handle it in the create/update methods
+        return data
+
+    def to_representation(self, value):
+        # This shouldn't be called since it's write_only, but just in case
+        return str(value)
+
+
+class ElektriskKategoriSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ElektriskKategori
+        fields = "__all__"
 
 
 class LeverandorerSerializer(serializers.ModelSerializer):
+    # Map JSON field names to model fields
+    navn = serializers.CharField(source="name")
+
     class Meta:
         model = Leverandorer
-        fields = "__all__"
+        fields = [
+            "id",
+            "navn",
+            "telefon",
+            "hjemmeside",
+            "addresse",
+            "poststed",
+            "postnummer",
+            "epost",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = ["id", "created_at", "updated_at"]
+
+
+class LeverandorerCreateSerializer(serializers.ModelSerializer):
+    navn = serializers.CharField(source="name")
+
+    class Meta:
+        model = Leverandorer
+        fields = [
+            "navn",
+            "telefon",
+            "hjemmeside",
+            "addresse",
+            "poststed",
+            "postnummer",
+            "epost",
+        ]
+
+    def create(self, validated_data):
+        # Use get_or_create to handle duplicates gracefully
+        leverandor, created = Leverandorer.objects.get_or_create(
+            name=validated_data.get("name"), defaults=validated_data
+        )
+
+        # If not created (already exists), update with new data
+        if not created:
+            for field, value in validated_data.items():
+                if field != "name" and value:  # Don't overwrite with empty values
+                    setattr(leverandor, field, value)
+            leverandor.save()
+
+        return leverandor
 
 
 class MatriellSerializer(serializers.ModelSerializer):
@@ -13,69 +89,151 @@ class MatriellSerializer(serializers.ModelSerializer):
     leverandor_id = serializers.PrimaryKeyRelatedField(
         queryset=Leverandorer.objects.all(), source="leverandor", write_only=True
     )
+    kategori = ElektriskKategoriSerializer(read_only=True)
+    kategori_id = serializers.PrimaryKeyRelatedField(
+        queryset=ElektriskKategori.objects.all(),
+        source="kategori",
+        write_only=True,
+        required=False,
+    )
 
     class Meta:
         model = Matriell
         fields = "__all__"
 
 
-class MatriellBulkCreateSerializer(serializers.ModelSerializer):
+class EFOBasenImportSerializer(serializers.ModelSerializer):
     """
-    Serializer for bulk creating Matriell objects from EFObasen data
-    Accepts manufacturer name and creates/finds the manufacturer automatically
+    Serializer for importing data directly from EFO Basen JSON format.
+    Handles foreign key lookups by name/blokknummer instead of IDs.
+    Now supports embedded supplier data for automatic creation.
     """
-    leverandor_name = serializers.CharField(write_only=True)
-    leverandor = LeverandorerSerializer(read_only=True)
+
+    # Foreign key lookups - leverandor can be either string or dict
+    kategori = serializers.CharField(
+        write_only=True, required=False, help_text="Blokknummer (e.g., '10')"
+    )
+    leverandor = LeverandorField(
+        write_only=True,
+        help_text="Leverandor name (string) or full leverandor object (dict)",
+    )
 
     class Meta:
         model = Matriell
         fields = [
-            'el_nr', 'tittel', 'info', 'ean_number', 'article_number',
-            'norwegian_description', 'english_description',
-            'height', 'width', 'depth', 'weight',
-            'etim_class', 'category', 'datasheet_url', 'image_url',
-            'approved', 'discontinued', 'in_stock',
-            'leverandor_name', 'leverandor'
+            "el_nr",
+            "tittel",
+            "varemerke",
+            "info",
+            "varenummer",
+            "gtin_number",
+            "teknisk_beskrivelse",
+            "varebetegnelse",
+            "hoyde",
+            "bredde",
+            "lengde",
+            "vekt",
+            "bilder",
+            "produktblad",
+            "produkt_url",
+            "fdv",
+            "cpr_sertifikat",
+            "miljoinformasjon",
+            "kategori",
+            "leverandor",
+            "approved",
+            "discontinued",
+            "in_stock",
+            "favorites",
         ]
+        extra_kwargs = {
+            "approved": {"default": True},
+            "discontinued": {"default": False},
+            "in_stock": {"default": True},
+            "favorites": {"default": False},
+        }
 
     def create(self, validated_data):
-        leverandor_name = validated_data.pop('leverandor_name')
+        # Handle kategori lookup by blokknummer
+        kategori_blokknummer = validated_data.pop("kategori", None)
+        kategori_obj = None
+        if kategori_blokknummer:
+            try:
+                kategori_obj = ElektriskKategori.objects.get(
+                    blokknummer=kategori_blokknummer
+                )
+            except ElektriskKategori.DoesNotExist as e:
+                raise serializers.ValidationError(
+                    f"ElektriskKategori with blokknummer '{kategori_blokknummer}' not found"
+                ) from e
 
-        # Extract category (EC code) from etim_class if not provided
-        etim_class = validated_data.get('etim_class', '')
-        if not validated_data.get('category') and etim_class:
-            import re
-            ec_match = re.search(r'EC\d{6}', etim_class)
-            if ec_match:
-                validated_data['category'] = ec_match.group()
+        # Handle leverandor (either embedded object or name string)
+        leverandor_data = validated_data.pop("leverandor", None)
+        leverandor_obj = None
 
-        # Create or get manufacturer
-        leverandor, created = Leverandorer.objects.get_or_create(
-            name=leverandor_name,
-            defaults={
-                'manufacturer_code': leverandor_name[:20].upper().replace(' ', '')
-            }
+        if isinstance(leverandor_data, dict):
+            # Handle embedded supplier data
+            supplier_serializer = LeverandorerCreateSerializer(data=leverandor_data)
+            if supplier_serializer.is_valid():
+                leverandor_obj = supplier_serializer.save()
+            else:
+                raise serializers.ValidationError(
+                    f"Invalid leverandor data: {supplier_serializer.errors}"
+                )
+        elif isinstance(leverandor_data, str):
+            # Handle string-based lookup
+            try:
+                leverandor_obj = Leverandorer.objects.get(name=leverandor_data)
+            except Leverandorer.DoesNotExist as e:
+                raise serializers.ValidationError(
+                    f"Leverandoren with name '{leverandor_data}' not found"
+                ) from e
+
+        # Create the Matriell instance
+        matriell = Matriell.objects.create(
+            kategori=kategori_obj, leverandor=leverandor_obj, **validated_data
         )
+        return matriell
 
-        validated_data['leverandor'] = leverandor
-        return super().create(validated_data)
+    def update(self, instance, validated_data):
+        # Handle kategori lookup by blokknummer
+        kategori_blokknummer = validated_data.pop("kategori", None)
+        if kategori_blokknummer:
+            try:
+                instance.kategori = ElektriskKategori.objects.get(
+                    blokknummer=kategori_blokknummer
+                )
+            except ElektriskKategori.DoesNotExist as e:
+                raise serializers.ValidationError(
+                    f"ElektriskKategori with blokknummer '{kategori_blokknummer}' not found"
+                ) from e
 
+        # Handle leverandor (either embedded object or name string)
+        leverandor_data = validated_data.pop("leverandor", None)
+        if isinstance(leverandor_data, dict):
+            # Handle embedded supplier data
+            supplier_serializer = LeverandorerCreateSerializer(data=leverandor_data)
+            if supplier_serializer.is_valid():
+                instance.leverandor = supplier_serializer.save()
+            else:
+                raise serializers.ValidationError(
+                    f"Invalid leverandor data: {supplier_serializer.errors}"
+                )
+        elif isinstance(leverandor_data, str):
+            # Handle string-based lookup
+            try:
+                instance.leverandor = Leverandorer.objects.get(name=leverandor_data)
+            except Leverandorer.DoesNotExist as e:
+                raise serializers.ValidationError(
+                    f"Leverandoren with name '{leverandor_data}' not found"
+                ) from e
 
-class LeverandorerCreateSerializer(serializers.ModelSerializer):
-    """
-    Serializer for creating manufacturers from EFObasen data
-    """
+        # Update other fields
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
 
-    class Meta:
-        model = Leverandorer
-        fields = ['name', 'manufacturer_code', 'website_url']
-
-    def create(self, validated_data):
-        # Generate manufacturer_code if not provided
-        if not validated_data.get('manufacturer_code'):
-            validated_data['manufacturer_code'] = validated_data['name'][:20].upper().replace(' ', '')
-
-        return super().create(validated_data)
+        instance.save()
+        return instance
 
 
 class JobbMatriellSerializer(serializers.ModelSerializer):
@@ -87,6 +245,7 @@ class JobbMatriellSerializer(serializers.ModelSerializer):
     class Meta:
         model = JobbMatriell
         fields = "__all__"
+
 
 class JobberImageSerializer(serializers.ModelSerializer):
     class Meta:
@@ -110,8 +269,8 @@ class JobberSerializer(serializers.ModelSerializer):
         model = Jobber
         fields = "__all__"
 
+
 class TimelisteSerializer(serializers.ModelSerializer):
     class Meta:
         model = Timeliste
         fields = "__all__"
-

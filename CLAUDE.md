@@ -21,6 +21,31 @@ source .venv/bin/activate
 - **Create migrations**: `python manage.py makemigrations`
 - **Collect static files**: `python manage.py collectstatic`
 
+### Code Quality & Linting
+
+The project uses modern Python linting tools for consistent code quality:
+
+**Quick Commands:**
+- **Run all linting tools**: `./scripts/lint.sh`
+- **Check/fix with ruff**: `ruff check --fix .`
+- **Format code with black**: `black .`
+- **Sort imports**: `isort .`
+- **Type checking**: `mypy .`
+- **Run pre-commit checks**: `pre-commit run --all-files`
+
+**Tools Configured:**
+- **Ruff**: Ultra-fast Python linter and formatter
+- **Black**: Uncompromising code formatter
+- **isort**: Import statement organizer
+- **Flake8**: Style and complexity checking
+- **MyPy**: Static type checker
+- **Pre-commit**: Automated git hook enforcement
+
+**Automation:**
+- Pre-commit hooks automatically run linting on git commits
+- VS Code integration with format-on-save and auto-fix
+- Django-specific rules for optimal Django development
+
 ### Docker Commands
 - **Build and run**: `docker-compose up --build`
 - **Collect static in Docker**: `docker-compose run --rm django python manage.py collectstatic --noinput`
