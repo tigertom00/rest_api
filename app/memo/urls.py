@@ -2,6 +2,7 @@ from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 
 from .views import (
+    DashboardViewSet,
     ElektriskKategoriViewSet,
     JobberFileViewSet,
     JobberImageViewSet,
@@ -13,6 +14,7 @@ from .views import (
 )
 
 router = DefaultRouter()
+router.register(r"dashboard", DashboardViewSet, basename="dashboard")
 router.register(r"elektrisk-kategorier", ElektriskKategoriViewSet)
 router.register(r"leverandorer", LeverandorerViewSet)
 router.register(r"matriell", MatriellViewSet)

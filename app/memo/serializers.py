@@ -281,21 +281,22 @@ class MatriellFavoriteSerializer(serializers.ModelSerializer):
     Lightweight serializer for favorites list with essential fields only.
     Optimized for performance when listing many favorites.
     """
-    leverandor_name = serializers.CharField(source='leverandor.name', read_only=True)
-    kategori_name = serializers.CharField(source='kategori.kategori', read_only=True)
+
+    leverandor_name = serializers.CharField(source="leverandor.name", read_only=True)
+    kategori_name = serializers.CharField(source="kategori.kategori", read_only=True)
 
     class Meta:
         model = Matriell
         fields = [
-            'id',
-            'el_nr',
-            'tittel',
-            'varemerke',
-            'varenummer',
-            'leverandor_name',
-            'kategori_name',
-            'approved',
-            'in_stock',
-            'favorites',
-            'created_at',
+            "id",
+            "el_nr",
+            "tittel",
+            "varemerke",
+            "varenummer",
+            "leverandor_name",
+            "kategori_name",
+            "approved",
+            "in_stock",
+            "favorites",
+            "created_at",
         ]
