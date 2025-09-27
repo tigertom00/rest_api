@@ -18,6 +18,14 @@ else
     exit 1
 fi
 
+echo "🐍 Installing Python packages..."
+if docker exec -u tiger restapi_django pip install -r requirements.txt; then
+    echo "✅ Python packages installed successfully"
+else
+    echo "❌ Failed to install Python packages"
+    exit 1
+fi
+
 echo "🔄 Restarting Django container..."
 if docker restart restapi_django; then
     echo "✅ Django container restarted successfully"
