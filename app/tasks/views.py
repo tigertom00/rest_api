@@ -154,8 +154,8 @@ class TaskViewSet(viewsets.ModelViewSet):
         except Exception:
             pass  # Don't let websocket issues break task creation
 
-    # FOUND THE ISSUE: @cache_api_response decorator causes 500 errors
-    # @cache_api_response(timeout=180)  # Cache for 3 minutes
+    # Testing: Try monitoring decorator (caching decorator was the issue)
+    @monitor_performance("task_list_view")
     def list(self, request, *args, **kwargs):
         """
         Simplified list method to restore service.
