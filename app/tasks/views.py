@@ -154,14 +154,34 @@ class TaskViewSet(viewsets.ModelViewSet):
         except Exception:
             pass  # Don't let websocket issues break task creation
 
-    # Testing: Try monitoring decorator (caching decorator was the issue)
+    # Testing: Add back filters_applied metadata (monitoring decorator works!)
     @monitor_performance("task_list_view")
     def list(self, request, *args, **kwargs):
         """
-        Simplified list method to restore service.
+        Override list method to include filters_applied metadata in response.
+        Includes performance monitoring.
         """
         try:
-            return super().list(request, *args, **kwargs)
+            response = super().list(request, *args, **kwargs)
+
+            # Add filters_applied metadata to the response
+            if hasattr(request, "filters_applied"):
+                if isinstance(response.data, dict) and "results" in response.data:
+                    # Paginated response - add filters_applied to the existing structure
+                    response.data["filters_applied"] = request.filters_applied
+                else:
+                    # Non-paginated response (shouldn't happen with default pagination, but just in case)
+                    response.data = {
+                        "count": (
+                            len(response.data) if isinstance(response.data, list) else 1
+                        ),
+                        "next": None,
+                        "previous": None,
+                        "results": response.data,
+                        "filters_applied": request.filters_applied,
+                    }
+
+            return response
         except Exception as e:
             # Log the error for debugging
             import logging
