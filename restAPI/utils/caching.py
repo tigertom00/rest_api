@@ -202,16 +202,20 @@ def cache_api_response(timeout: int = 300):
             )
 
             # Try cache first
-            cached_response = cache.get(cache_key)
-            if cached_response:
-                return cached_response
+            cached_data = cache.get(cache_key)
+            if cached_data:
+                # Create new Response with cached data
+                from rest_framework.response import Response
 
-            # Execute view and cache response
+                return Response(cached_data)
+
+            # Execute view and cache response data (not the Response object)
             response = view_method(self, request, *args, **kwargs)
 
             # Only cache successful responses
             if hasattr(response, "status_code") and response.status_code == 200:
-                cache.set(cache_key, response, timeout)
+                # Cache the data, not the Response object (fixes serialization issue)
+                cache.set(cache_key, response.data, timeout)
 
             return response
 

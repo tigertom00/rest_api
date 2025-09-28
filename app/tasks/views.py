@@ -154,7 +154,8 @@ class TaskViewSet(viewsets.ModelViewSet):
         except Exception:
             pass  # Don't let websocket issues break task creation
 
-    # Testing: Add back filters_applied metadata (monitoring decorator works!)
+    # Testing: Try FIXED caching decorator + monitoring
+    @cache_api_response(timeout=180)  # Cache for 3 minutes - FIXED VERSION
     @monitor_performance("task_list_view")
     def list(self, request, *args, **kwargs):
         """
