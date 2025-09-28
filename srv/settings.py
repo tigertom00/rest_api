@@ -54,6 +54,8 @@ INSTALLED_APPS = [
 # * Middleware
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    "django.middleware.gzip.GZipMiddleware",  # GZip compression middleware
+    "restAPI.utils.monitoring.PerformanceMonitoringMiddleware",  # Performance monitoring
     "django.contrib.sessions.middleware.SessionMiddleware",
     "corsheaders.middleware.CorsMiddleware",  # CORS middleware
     "django.middleware.common.CommonMiddleware",
@@ -114,6 +116,22 @@ REST_FRAMEWORK = {
         "rest_framework.permissions.IsAuthenticated",
     ],
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
+    "EXCEPTION_HANDLER": "restAPI.utils.exceptions.custom_exception_handler",
+    "DEFAULT_PAGINATION_CLASS": "restAPI.utils.pagination.StandardResultsSetPagination",
+    "DEFAULT_THROTTLE_CLASSES": [
+        "restAPI.utils.throttling.APIRateThrottle",
+        "restAPI.utils.throttling.AnonymousRateThrottle",
+    ],
+    "DEFAULT_THROTTLE_RATES": {
+        "anon": "100/hour",  # Anonymous users: 100 requests per hour
+        "api": "1000/hour",  # Authenticated users: 1000 requests per hour
+        "login": "5/min",  # Login attempts: 5 per minute
+        "upload": "50/hour",  # File uploads: 50 per hour
+        "bulk": "10/hour",  # Bulk operations: 10 per hour
+        "admin": "200/hour",  # Admin operations: 200 per hour
+        "sustained": "5000/day",  # Daily limit: 5000 requests per day
+        "database": "100/hour",  # Database heavy operations: 100 per hour
+    },
 }
 
 # * Simple JWT settings
@@ -348,6 +366,16 @@ LOGGING = {
         "django_mcp_server": {
             "handlers": ["console"],
             "level": "ERROR",  # Suppress INFO/WARNING messages from Django MCP
+            "propagate": False,
+        },
+        "monitoring": {
+            "handlers": ["console"],
+            "level": "INFO",  # Performance monitoring logs
+            "propagate": False,
+        },
+        "audit": {
+            "handlers": ["console"],
+            "level": "INFO",  # Audit logs
             "propagate": False,
         },
     },

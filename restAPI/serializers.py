@@ -112,6 +112,59 @@ class BlacklistTokenSerializer(serializers.Serializer):
     refresh_token = serializers.CharField()
 
 
+class AdminUserSerializer(serializers.ModelSerializer):
+    """Serializer for admin user management operations."""
+
+    class Meta:
+        model = Users
+        fields = (
+            "id",
+            "email",
+            "username",
+            "display_name",
+            "first_name",
+            "last_name",
+            "is_active",
+            "is_staff",
+            "is_superuser",
+            "date_joined",
+            "last_login",
+            "clerk_user_id",
+            "two_factor_enabled",
+        )
+        read_only_fields = (
+            "id",
+            "date_joined",
+            "last_login",
+            "clerk_user_id",
+        )
+
+
+class AdminUserUpdateSerializer(serializers.ModelSerializer):
+    """Serializer for admin user update operations."""
+
+    class Meta:
+        model = Users
+        fields = (
+            "is_active",
+            "is_staff",
+            "is_superuser",
+            "display_name",
+            "first_name",
+            "last_name",
+        )
+
+
+class AdminPasswordResetSerializer(serializers.Serializer):
+    """Serializer for admin-initiated password resets."""
+
+    new_password = serializers.CharField(min_length=8, write_only=True)
+
+    def validate_new_password(self, value):
+        validate_password(value)
+        return value
+
+
 # * ElektriskKategori Serializer
 class ElektriskKategoriSerializer(serializers.ModelSerializer):
     class Meta:

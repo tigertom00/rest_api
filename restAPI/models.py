@@ -1,29 +1,34 @@
-from django.db import models
+import os
+import uuid
+
 from django.contrib.auth.models import AbstractUser, UserManager
-import os, uuid
+from django.db import models
 
 
 # Users
 class CustomUserManager(UserManager):
     def create_user(self, email, password=None, username=None, **extra_fields):
         if not email:
-            raise ValueError('The Email field must be set')
+            raise ValueError("The Email field must be set")
         email = self.normalize_email(email)
         if not username:
-            username = email.split('@')[0]
-        extra_fields['username'] = username
+            username = email.split("@")[0]
+        extra_fields["username"] = username
         user = self.model(email=email, username=username, **extra_fields)
         user.set_password(password)
         user.save(using=self._db)
         return user
 
     def create_superuser(self, email, password=None, **extra_fields):
-        extra_fields.setdefault('is_staff', True)
-        extra_fields.setdefault('is_superuser', True)
+        extra_fields.setdefault("is_staff", True)
+        extra_fields.setdefault("is_superuser", True)
         return self.create_user(email, password, **extra_fields)
 
+
 class UserEmail(models.Model):
-    user = models.ForeignKey('CustomUser', related_name='emails', on_delete=models.CASCADE)
+    user = models.ForeignKey(
+        "CustomUser", related_name="emails", on_delete=models.CASCADE
+    )
     email = models.EmailField()
     is_primary = models.BooleanField(default=False)
     is_verified = models.BooleanField(default=False)
@@ -31,14 +36,18 @@ class UserEmail(models.Model):
     def __str__(self):
         return self.email
 
+
 class UserPhone(models.Model):
-    user = models.ForeignKey('CustomUser', related_name='phones', on_delete=models.CASCADE)
+    user = models.ForeignKey(
+        "CustomUser", related_name="phones", on_delete=models.CASCADE
+    )
     phone_nr = models.CharField(max_length=20)
     is_primary = models.BooleanField(default=False)
     is_verified = models.BooleanField(default=False)
 
     def __str__(self):
         return self.phone_nr
+
 
 class CustomUser(AbstractUser):
     username = models.CharField(max_length=150, blank=True, null=True)
@@ -51,36 +60,40 @@ class CustomUser(AbstractUser):
     website = models.URLField(blank=True)
     phone = models.CharField(max_length=50, unique=True, null=True, blank=True)
     profile_picture = models.ImageField(
-        upload_to='profile_image', default='default/profile.png')
+        upload_to="profile_image", default="default/profile.png"
+    )
     clerk_profile_image_url = models.URLField(blank=True, null=True)
-    theme = models.CharField(max_length=20, choices=[
-        ('light', 'Light'),
-        ('dark', 'Dark'),
-        ('pink', 'Pink'),
-        ('purple', 'Purple'),
-        ('system', 'System'),
-    ], default='dark')
-    clerk_user_id = models.CharField(max_length=255, blank=True, null=True)  
+    theme = models.CharField(
+        max_length=20,
+        choices=[
+            ("light", "Light"),
+            ("dark", "Dark"),
+            ("pink", "Pink"),
+            ("purple", "Purple"),
+            ("system", "System"),
+        ],
+        default="dark",
+    )
+    clerk_user_id = models.CharField(max_length=255, blank=True, null=True)
     has_image = models.BooleanField(default=False)
     two_factor_enabled = models.BooleanField(default=False)
     clerk_updated_at = models.DateTimeField(auto_now=True)
-    chat_session_id = models.UUIDField(
-        default=uuid.uuid4, blank=True, null=True)
-    language = models.CharField(max_length=10, choices=[
-        ('en', 'English'),
-        ('no', 'Norwegian'),
-    ], default='en')
+    chat_session_id = models.UUIDField(default=uuid.uuid4, blank=True, null=True)
+    language = models.CharField(
+        max_length=10,
+        choices=[
+            ("en", "English"),
+            ("no", "Norwegian"),
+        ],
+        default="en",
+    )
 
-
-
-    USERNAME_FIELD = 'email'
-    REQUIRED_FIELDS = ['username']
-    
-
+    USERNAME_FIELD = "email"
+    REQUIRED_FIELDS = ["username"]
 
     def save(self, *args, **kwargs):
         if not self.username and self.email:
-            self.username = self.email.split('@')[0]
+            self.username = self.email.split("@")[0]
             if len(self.username) < 4:
                 self.username = self.username + os.urandom(2).hex()[:8]
         if not self.display_name and self.username:
@@ -91,4 +104,65 @@ class CustomUser(AbstractUser):
 
     def __str__(self):
         return self.email
-    
+
+
+class AuditLog(models.Model):
+    """
+    Model for storing audit log entries.
+    Tracks sensitive operations for security and compliance.
+    """
+
+    class ActionType(models.TextChoices):
+        CREATE = "CREATE", "Create"
+        UPDATE = "UPDATE", "Update"
+        DELETE = "DELETE", "Delete"
+        LOGIN = "LOGIN", "Login"
+        LOGOUT = "LOGOUT", "Logout"
+        PASSWORD_CHANGE = "PASSWORD_CHANGE", "Password Change"
+        PERMISSION_CHANGE = "PERMISSION_CHANGE", "Permission Change"
+        BULK_OPERATION = "BULK_OPERATION", "Bulk Operation"
+        ADMIN_ACTION = "ADMIN_ACTION", "Admin Action"
+        FILE_UPLOAD = "FILE_UPLOAD", "File Upload"
+        DATA_EXPORT = "DATA_EXPORT", "Data Export"
+        ACCESS_DENIED = "ACCESS_DENIED", "Access Denied"
+
+    class Severity(models.TextChoices):
+        LOW = "LOW", "Low"
+        MEDIUM = "MEDIUM", "Medium"
+        HIGH = "HIGH", "High"
+        CRITICAL = "CRITICAL", "Critical"
+
+    timestamp = models.DateTimeField(auto_now_add=True, db_index=True)
+    user = models.ForeignKey(
+        CustomUser, on_delete=models.SET_NULL, null=True, blank=True
+    )
+    user_email = models.EmailField(blank=True)  # Store email in case user is deleted
+    action = models.CharField(max_length=50, choices=ActionType.choices, db_index=True)
+    resource = models.CharField(
+        max_length=100, db_index=True
+    )  # e.g., 'Task', 'User', 'BlogMedia'
+    resource_id = models.CharField(max_length=50, blank=True, db_index=True)
+    description = models.TextField()
+    severity = models.CharField(
+        max_length=10, choices=Severity.choices, default=Severity.LOW
+    )
+
+    # Request information
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
+    user_agent = models.TextField(blank=True)
+    request_method = models.CharField(max_length=10, blank=True)
+    request_path = models.CharField(max_length=500, blank=True)
+
+    # Additional context
+    metadata = models.JSONField(default=dict, blank=True)
+
+    class Meta:
+        ordering = ["-timestamp"]
+        indexes = [
+            models.Index(fields=["timestamp", "action"]),
+            models.Index(fields=["user", "timestamp"]),
+            models.Index(fields=["severity", "timestamp"]),
+        ]
+
+    def __str__(self):
+        return f"{self.timestamp} - {self.user_email or 'Anonymous'} - {self.action} - {self.resource}"

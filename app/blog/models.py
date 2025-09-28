@@ -1,9 +1,12 @@
+import os
+import re
+
+import markdown2
+from django.contrib.auth import get_user_model
 from django.core.validators import FileExtensionValidator, URLValidator
 from django.db import models
 from django.template.defaultfilters import slugify
 from django.utils import timezone
-import re, markdown2
-from django.contrib.auth import get_user_model
 
 User = get_user_model()
 
@@ -13,8 +16,13 @@ class SiteSettings(models.Model):
     Singleton-ish model: the one place admin sets which author's posts are public on the landing page.
     Keep exactly one row; enforce in admin or via business rules.
     """
+
     featured_author = models.ForeignKey(
-        User, null=True, blank=True, on_delete=models.SET_NULL, related_name="featured_on_site"
+        User,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="featured_on_site",
     )
 
     def __str__(self):
@@ -36,21 +44,30 @@ class Tag(models.Model):
     def __str__(self):
         return self.name
 
+
 class BlogPost(models.Model):
     class Status(models.TextChoices):
         DRAFT = "draft", "Draft"
         PUBLISHED = "published", "Published"
 
-    author = models.ForeignKey(User, on_delete=models.CASCADE, related_name="blog_posts")
+    author = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name="blog_posts"
+    )
     title = models.CharField(max_length=200)
-    title_nb = models.CharField(max_length=200, blank=True)  # Optional Norwegian Bokmål version
+    title_nb = models.CharField(
+        max_length=200, blank=True
+    )  # Optional Norwegian Bokmål version
     slug = models.SlugField(max_length=230, editable=False, db_index=True)
     excerpt = models.CharField(max_length=300, blank=True)
-    excerpt_nb = models.CharField(max_length=300, blank=True)  # Optional Norwegian Bokmål version
+    excerpt_nb = models.CharField(
+        max_length=300, blank=True
+    )  # Optional Norwegian Bokmål version
     tags = models.ManyToManyField(Tag, blank=True, related_name="posts")
-    body_markdown = models.TextField()  
+    body_markdown = models.TextField()
     body_markdown_nb = models.TextField(blank=True)  # Optional Norwegian Bokmål version
-    status = models.CharField(max_length=10, choices=Status.choices, default=Status.DRAFT)
+    status = models.CharField(
+        max_length=10, choices=Status.choices, default=Status.DRAFT
+    )
 
     meta_title = models.CharField(max_length=70, blank=True)
     meta_description = models.CharField(max_length=160, blank=True)
@@ -76,10 +93,11 @@ class BlogPost(models.Model):
         slug = base_slug
         counter = 1
 
-        while BlogPost.objects.filter(
-            author=self.author,
-            slug=slug
-        ).exclude(pk=self.pk).exists():
+        while (
+            BlogPost.objects.filter(author=self.author, slug=slug)
+            .exclude(pk=self.pk)
+            .exists()
+        ):
             slug = f"{base_slug}-{counter}"
             counter += 1
 
@@ -114,13 +132,17 @@ class PostImage(models.Model):
 
 
 class PostAudio(models.Model):
-    post = models.ForeignKey(BlogPost, on_delete=models.CASCADE, related_name="audio_files")
+    post = models.ForeignKey(
+        BlogPost, on_delete=models.CASCADE, related_name="audio_files"
+    )
     audio = models.FileField(
         upload_to=upload_post_audio,
         validators=[FileExtensionValidator(["mp3", "wav", "m4a", "aac", "ogg"])],
     )
     title = models.CharField(max_length=150, blank=True)
-    duration_seconds = models.PositiveIntegerField(null=True, blank=True)  # optional: fill via processing
+    duration_seconds = models.PositiveIntegerField(
+        null=True, blank=True
+    )  # optional: fill via processing
     order = models.PositiveIntegerField(default=0)
 
     class Meta:
@@ -137,10 +159,15 @@ class PostYouTube(models.Model):
     Store URLs (canonical watch or youtu.be) and keep a parsed video_id.
     Frontend can embed with <iframe src={`https://www.youtube.com/embed/${video_id}`}>…
     """
-    post = models.ForeignKey(BlogPost, on_delete=models.CASCADE, related_name="youtube_videos")
+
+    post = models.ForeignKey(
+        BlogPost, on_delete=models.CASCADE, related_name="youtube_videos"
+    )
     url = models.URLField(validators=[URLValidator()])
     video_id = models.CharField(max_length=11, editable=False, db_index=True)
-    title = models.CharField(max_length=150, blank=True)  # optional, can be filled by a fetch task
+    title = models.CharField(
+        max_length=150, blank=True
+    )  # optional, can be filled by a fetch task
     order = models.PositiveIntegerField(default=0)
 
     class Meta:
@@ -154,3 +181,45 @@ class PostYouTube(models.Model):
                 raise ValueError("URL must be a valid YouTube watch or youtu.be link")
             self.video_id = m.group("vid")
         return super().save(*args, **kwargs)
+
+
+def upload_blog_media(instance, filename):
+    return f"blog/media/{instance.uploaded_by.id}/{filename}"
+
+
+class BlogMedia(models.Model):
+    filename = models.CharField(max_length=255)
+    original_filename = models.CharField(max_length=255)
+    file = models.FileField(upload_to=upload_blog_media)
+    file_type = models.CharField(max_length=50)
+    file_size = models.PositiveIntegerField()  # Size in bytes
+    upload_date = models.DateTimeField(auto_now_add=True)
+    uploaded_by = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name="uploaded_media"
+    )
+
+    class Meta:
+        ordering = ["-upload_date"]
+
+    @property
+    def url(self):
+        """Return the URL of the uploaded file"""
+        return self.file.url if self.file else None
+
+    @property
+    def thumbnail_url(self):
+        """Return thumbnail URL for images (placeholder for now)"""
+        if self.file_type.startswith("image/"):
+            # This could be enhanced with actual thumbnail generation
+            return self.url
+        return None
+
+    def delete(self, *args, **kwargs):
+        # Delete the file when the model instance is deleted
+        if self.file:
+            if os.path.isfile(self.file.path):
+                os.remove(self.file.path)
+        super().delete(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.original_filename} ({self.file_type})"
