@@ -118,10 +118,10 @@ REST_FRAMEWORK = {
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
     "EXCEPTION_HANDLER": "restAPI.utils.exceptions.custom_exception_handler",
     "DEFAULT_PAGINATION_CLASS": "restAPI.utils.pagination.StandardResultsSetPagination",
-    "DEFAULT_THROTTLE_CLASSES": [
-        "restAPI.utils.throttling.APIRateThrottle",
-        "restAPI.utils.throttling.AnonymousRateThrottle",
-    ],
+    # "DEFAULT_THROTTLE_CLASSES": [
+    #     "restAPI.utils.throttling.APIRateThrottle",
+    #     "restAPI.utils.throttling.AnonymousRateThrottle",
+    # ],
     "DEFAULT_THROTTLE_RATES": {
         "anon": "100/hour",  # Anonymous users: 100 requests per hour
         "api": "1000/hour",  # Authenticated users: 1000 requests per hour
@@ -249,7 +249,7 @@ DEV_IP = "10.20.30.202"
 current_ip = socket.gethostbyname(socket.gethostname())
 
 if current_ip == DEV_IP:
-    # print("Running on development machine, using SQLite DB.")
+    # print("Running on development machine, using MySQL Production Database.")
     DEBUG = True
     # DATABASES = {
     #   'default': {
