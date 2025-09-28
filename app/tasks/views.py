@@ -12,9 +12,12 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from restAPI.utils.audit import AuditLogger
-from restAPI.utils.caching import CacheManager, QueryOptimizer
+from restAPI.utils.caching import CacheManager, QueryOptimizer, cache_api_response
+from restAPI.utils.monitoring import monitor_performance
 from restAPI.utils.throttling import (
+    APIRateThrottle,
     BulkOperationRateThrottle,
+    DatabaseOperationThrottle,
 )
 
 from .models import Category, Project, ProjectImage, Task, TaskImage
@@ -42,8 +45,7 @@ class TaskViewSet(viewsets.ModelViewSet):
     serializer_class = TaskSerializer
     permission_classes = [IsAuthenticated]
     parser_classes = [MultiPartParser, FormParser]
-    # Temporarily disabled for production debugging
-    # throttle_classes = [APIRateThrottle, DatabaseOperationThrottle]
+    throttle_classes = [APIRateThrottle, DatabaseOperationThrottle]
 
     def get_queryset(self):
         # Only return tasks for the current user
@@ -132,16 +134,15 @@ class TaskViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         task = serializer.save(user_id=self.request.user)
 
-        # Temporarily disable cache and websocket features to debug production issue
+        # Invalidate user's task cache with error handling
         try:
-            # Invalidate user's task cache
             CacheManager.invalidate_user_cache(self.request.user.id, ["task_lists"])
             CacheManager.invalidate_list_cache("task_lists")
         except Exception:
             pass  # Don't let cache issues break task creation
 
+        # Broadcast task created event with error handling
         try:
-            # Broadcast task created event
             self.broadcast_task_event(
                 "task_created",
                 {
@@ -152,13 +153,34 @@ class TaskViewSet(viewsets.ModelViewSet):
         except Exception:
             pass  # Don't let websocket issues break task creation
 
-    # Temporarily simplified to debug production issue
+    @cache_api_response(timeout=180)  # Cache for 3 minutes
+    @monitor_performance("task_list_view")
     def list(self, request, *args, **kwargs):
         """
-        Simplified list method for production debugging.
+        Override list method to include filters_applied metadata in response.
+        Includes caching and performance monitoring.
         """
         try:
-            return super().list(request, *args, **kwargs)
+            response = super().list(request, *args, **kwargs)
+
+            # Add filters_applied metadata to the response
+            if hasattr(request, "filters_applied"):
+                if isinstance(response.data, dict) and "results" in response.data:
+                    # Paginated response - add filters_applied to the existing structure
+                    response.data["filters_applied"] = request.filters_applied
+                else:
+                    # Non-paginated response (shouldn't happen with default pagination, but just in case)
+                    response.data = {
+                        "count": (
+                            len(response.data) if isinstance(response.data, list) else 1
+                        ),
+                        "next": None,
+                        "previous": None,
+                        "results": response.data,
+                        "filters_applied": request.filters_applied,
+                    }
+
+            return response
         except Exception as e:
             # Log the error for debugging
             import logging
