@@ -154,7 +154,8 @@ class TaskViewSet(viewsets.ModelViewSet):
         except Exception:
             pass  # Don't let websocket issues break task creation
 
-    # Emergency simplified version to fix 500 errors
+    # Testing: Re-enable caching decorator
+    @cache_api_response(timeout=180)  # Cache for 3 minutes
     def list(self, request, *args, **kwargs):
         """
         Simplified list method to restore service.
