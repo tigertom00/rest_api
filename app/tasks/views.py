@@ -45,8 +45,8 @@ class TaskViewSet(viewsets.ModelViewSet):
     serializer_class = TaskSerializer
     permission_classes = [IsAuthenticated]
     parser_classes = [MultiPartParser, FormParser]
-    # Testing: Re-enable basic throttling first
-    throttle_classes = [APIRateThrottle]
+    # Testing: Re-enable both throttling classes
+    throttle_classes = [APIRateThrottle, DatabaseOperationThrottle]
 
     def get_queryset(self):
         # Only return tasks for the current user
