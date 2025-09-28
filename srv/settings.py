@@ -55,7 +55,8 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "django.middleware.gzip.GZipMiddleware",  # GZip compression middleware
-    "restAPI.utils.monitoring.PerformanceMonitoringMiddleware",  # Performance monitoring
+    # Temporarily disabled for production debugging - causes issues when DEBUG=False
+    # "restAPI.utils.monitoring.PerformanceMonitoringMiddleware",  # Performance monitoring
     "django.contrib.sessions.middleware.SessionMiddleware",
     "corsheaders.middleware.CorsMiddleware",  # CORS middleware
     "django.middleware.common.CommonMiddleware",

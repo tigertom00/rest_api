@@ -12,12 +12,9 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from restAPI.utils.audit import AuditLogger
-from restAPI.utils.caching import CacheManager, QueryOptimizer, cache_api_response
-from restAPI.utils.monitoring import monitor_performance
+from restAPI.utils.caching import CacheManager, QueryOptimizer
 from restAPI.utils.throttling import (
-    APIRateThrottle,
     BulkOperationRateThrottle,
-    DatabaseOperationThrottle,
 )
 
 from .models import Category, Project, ProjectImage, Task, TaskImage
@@ -45,7 +42,8 @@ class TaskViewSet(viewsets.ModelViewSet):
     serializer_class = TaskSerializer
     permission_classes = [IsAuthenticated]
     parser_classes = [MultiPartParser, FormParser]
-    throttle_classes = [APIRateThrottle, DatabaseOperationThrottle]
+    # Temporarily disabled for production debugging
+    # throttle_classes = [APIRateThrottle, DatabaseOperationThrottle]
 
     def get_queryset(self):
         # Only return tasks for the current user
@@ -122,52 +120,52 @@ class TaskViewSet(viewsets.ModelViewSet):
         # Store filters_applied in the request for use in list response
         self.request.filters_applied = filters_applied
 
-        # Apply query optimization
-        return QueryOptimizer.optimize_task_queryset(queryset)
+        # Apply query optimization - temporarily simplified to debug production issue
+        try:
+            return QueryOptimizer.optimize_task_queryset(queryset)
+        except Exception:
+            # Fallback to basic optimization if QueryOptimizer fails
+            return queryset.select_related("user_id", "project").prefetch_related(
+                "category", "images"
+            )
 
     def perform_create(self, serializer):
         task = serializer.save(user_id=self.request.user)
 
-        # Invalidate user's task cache
-        CacheManager.invalidate_user_cache(self.request.user.id, ["task_lists"])
-        CacheManager.invalidate_list_cache("task_lists")
+        # Temporarily disable cache and websocket features to debug production issue
+        try:
+            # Invalidate user's task cache
+            CacheManager.invalidate_user_cache(self.request.user.id, ["task_lists"])
+            CacheManager.invalidate_list_cache("task_lists")
+        except Exception:
+            pass  # Don't let cache issues break task creation
 
-        # Broadcast task created event
-        self.broadcast_task_event(
-            "task_created",
-            {
-                "task": self.serialize_task_for_websocket(task),
-                "created_by": self.request.user.id,
-            },
-        )
+        try:
+            # Broadcast task created event
+            self.broadcast_task_event(
+                "task_created",
+                {
+                    "task": self.serialize_task_for_websocket(task),
+                    "created_by": self.request.user.id,
+                },
+            )
+        except Exception:
+            pass  # Don't let websocket issues break task creation
 
-    @cache_api_response(timeout=180)  # Cache for 3 minutes
-    @monitor_performance("task_list_view")
+    # Temporarily simplified to debug production issue
     def list(self, request, *args, **kwargs):
         """
-        Override list method to include filters_applied metadata in response.
-        Includes caching for performance.
+        Simplified list method for production debugging.
         """
-        response = super().list(request, *args, **kwargs)
+        try:
+            return super().list(request, *args, **kwargs)
+        except Exception as e:
+            # Log the error for debugging
+            import logging
 
-        # Add filters_applied metadata to the response
-        if hasattr(request, "filters_applied"):
-            if isinstance(response.data, dict) and "results" in response.data:
-                # Paginated response - add filters_applied to the existing structure
-                response.data["filters_applied"] = request.filters_applied
-            else:
-                # Non-paginated response (shouldn't happen with default pagination, but just in case)
-                response.data = {
-                    "count": (
-                        len(response.data) if isinstance(response.data, list) else 1
-                    ),
-                    "next": None,
-                    "previous": None,
-                    "results": response.data,
-                    "filters_applied": request.filters_applied,
-                }
-
-        return response
+            logger = logging.getLogger(__name__)
+            logger.error(f"Task list error: {str(e)}", exc_info=True)
+            raise
 
     @action(detail=True, methods=["post"], parser_classes=[MultiPartParser, FormParser])
     def upload_image(self, request, pk=None):
