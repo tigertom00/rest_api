@@ -4,12 +4,14 @@ import time
 from datetime import datetime
 from functools import wraps
 
-import psutil
+from django.conf import settings
 from django.core.cache import cache
 from django.db import connection
 from django.http import JsonResponse
 from django.utils.deprecation import MiddlewareMixin
 from django.views.decorators.cache import never_cache
+
+import psutil
 from rest_framework.decorators import (
     api_view,
     permission_classes,
@@ -29,7 +31,11 @@ class PerformanceMonitoringMiddleware(MiddlewareMixin):
     def process_request(self, request):
         # Start timing the request
         request._monitoring_start_time = time.time()
-        request._monitoring_db_queries_start = len(connection.queries)
+        # Only track DB queries in DEBUG mode (connection.queries is empty in production)
+        if settings.DEBUG:
+            request._monitoring_db_queries_start = len(connection.queries)
+        else:
+            request._monitoring_db_queries_start = 0
 
     def process_response(self, request, response):
         # Calculate response time
@@ -37,10 +43,15 @@ class PerformanceMonitoringMiddleware(MiddlewareMixin):
             response_time = time.time() - request._monitoring_start_time
             response["X-Response-Time"] = f"{response_time:.3f}s"
 
-            # Calculate database queries
-            db_queries = len(connection.queries) - getattr(
-                request, "_monitoring_db_queries_start", 0
-            )
+            # Calculate database queries (only available in DEBUG mode)
+            if settings.DEBUG:
+                db_queries = len(connection.queries) - getattr(
+                    request, "_monitoring_db_queries_start", 0
+                )
+            else:
+                # In production, we can't track individual queries, so use 0
+                db_queries = 0
+
             response["X-DB-Queries"] = str(db_queries)
 
             # Log performance metrics for API endpoints
@@ -162,7 +173,7 @@ class MetricsCollector:
             # Get database connection info
             db_info = {
                 "vendor": connection.vendor,
-                "queries_count": len(connection.queries),
+                "queries_count": len(connection.queries) if settings.DEBUG else 0,
                 "timestamp": datetime.now().isoformat(),
             }
 
