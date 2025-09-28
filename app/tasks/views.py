@@ -45,7 +45,8 @@ class TaskViewSet(viewsets.ModelViewSet):
     serializer_class = TaskSerializer
     permission_classes = [IsAuthenticated]
     parser_classes = [MultiPartParser, FormParser]
-    throttle_classes = [APIRateThrottle, DatabaseOperationThrottle]
+    # Temporarily disable throttling - 500 errors returned
+    # throttle_classes = [APIRateThrottle, DatabaseOperationThrottle]
 
     def get_queryset(self):
         # Only return tasks for the current user
@@ -153,34 +154,13 @@ class TaskViewSet(viewsets.ModelViewSet):
         except Exception:
             pass  # Don't let websocket issues break task creation
 
-    @cache_api_response(timeout=180)  # Cache for 3 minutes
-    @monitor_performance("task_list_view")
+    # Emergency simplified version to fix 500 errors
     def list(self, request, *args, **kwargs):
         """
-        Override list method to include filters_applied metadata in response.
-        Includes caching and performance monitoring.
+        Simplified list method to restore service.
         """
         try:
-            response = super().list(request, *args, **kwargs)
-
-            # Add filters_applied metadata to the response
-            if hasattr(request, "filters_applied"):
-                if isinstance(response.data, dict) and "results" in response.data:
-                    # Paginated response - add filters_applied to the existing structure
-                    response.data["filters_applied"] = request.filters_applied
-                else:
-                    # Non-paginated response (shouldn't happen with default pagination, but just in case)
-                    response.data = {
-                        "count": (
-                            len(response.data) if isinstance(response.data, list) else 1
-                        ),
-                        "next": None,
-                        "previous": None,
-                        "results": response.data,
-                        "filters_applied": request.filters_applied,
-                    }
-
-            return response
+            return super().list(request, *args, **kwargs)
         except Exception as e:
             # Log the error for debugging
             import logging
