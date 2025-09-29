@@ -1571,3 +1571,154 @@ class TimelisteViewSet(viewsets.ModelViewSet):
     filter_backends = [DjangoFilterBackend, filters.SearchFilter]
     filterset_class = TimelisteFilter
     search_fields = ["beskrivelse", "jobb__tittel", "user__username"]
+
+    @action(detail=False, methods=["get"])
+    def user_stats(self, request):
+        """
+        Get time tracking statistics for the current user and all users.
+        Returns: {
+            "today": {"hours": 8.5, "entries": 3},
+            "yesterday": {"hours": 7.0, "entries": 2},
+            "total_user": {"hours": 245.5, "entries": 89},
+            "total_all_users": {"hours": 1847.5, "entries": 567}
+        }
+        """
+        from datetime import timedelta
+        from django.db.models import Sum
+
+        user = request.user
+        now = timezone.now()
+        today = now.date()
+        yesterday = today - timedelta(days=1)
+
+        # Today's stats
+        today_entries = Timeliste.objects.filter(user=user, dato=today)
+        today_hours = today_entries.aggregate(Sum("timer"))["timer__sum"] or 0
+        today_count = today_entries.count()
+
+        # Yesterday's stats
+        yesterday_entries = Timeliste.objects.filter(user=user, dato=yesterday)
+        yesterday_hours = yesterday_entries.aggregate(Sum("timer"))["timer__sum"] or 0
+        yesterday_count = yesterday_entries.count()
+
+        # Total user stats
+        user_entries = Timeliste.objects.filter(user=user)
+        total_user_hours = user_entries.aggregate(Sum("timer"))["timer__sum"] or 0
+        total_user_count = user_entries.count()
+
+        # Total all users stats
+        all_entries = Timeliste.objects.all()
+        total_all_hours = all_entries.aggregate(Sum("timer"))["timer__sum"] or 0
+        total_all_count = all_entries.count()
+
+        return Response(
+            {
+                "today": {"hours": float(today_hours), "entries": today_count},
+                "yesterday": {
+                    "hours": float(yesterday_hours),
+                    "entries": yesterday_count,
+                },
+                "total_user": {
+                    "hours": float(total_user_hours),
+                    "entries": total_user_count,
+                },
+                "total_all_users": {
+                    "hours": float(total_all_hours),
+                    "entries": total_all_count,
+                },
+            }
+        )
+
+    @action(detail=False, methods=["get"])
+    def by_date(self, request):
+        """
+        Get time entries grouped by date for the current user.
+        Query params:
+        - start_date: Start date (YYYY-MM-DD, optional)
+        - end_date: End date (YYYY-MM-DD, optional)
+        - user_id: User ID (optional, defaults to current user)
+        """
+        from datetime import datetime
+        from django.db.models import Sum
+
+        user = request.user
+        user_id = request.query_params.get("user_id")
+
+        # Allow filtering by different user if user_id is provided
+        if user_id:
+            try:
+                from django.contrib.auth import get_user_model
+
+                User = get_user_model()
+                user = User.objects.get(id=user_id)
+            except User.DoesNotExist:
+                return Response(
+                    {"error": f"User with id {user_id} not found"},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+
+        queryset = Timeliste.objects.filter(user=user)
+
+        # Apply date filters
+        start_date = request.query_params.get("start_date")
+        end_date = request.query_params.get("end_date")
+
+        if start_date:
+            try:
+                start_date_obj = datetime.strptime(start_date, "%Y-%m-%d").date()
+                queryset = queryset.filter(dato__gte=start_date_obj)
+            except ValueError:
+                return Response(
+                    {"error": "Invalid start_date format. Use YYYY-MM-DD"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+        if end_date:
+            try:
+                end_date_obj = datetime.strptime(end_date, "%Y-%m-%d").date()
+                queryset = queryset.filter(dato__lte=end_date_obj)
+            except ValueError:
+                return Response(
+                    {"error": "Invalid end_date format. Use YYYY-MM-DD"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+        # Group by date
+        entries_by_date = {}
+        for entry in queryset.select_related("jobb", "user").order_by("dato"):
+            date_str = str(entry.dato) if entry.dato else "no_date"
+
+            if date_str not in entries_by_date:
+                entries_by_date[date_str] = {
+                    "date": date_str,
+                    "total_hours": 0,
+                    "entries": [],
+                }
+
+            entries_by_date[date_str]["total_hours"] += entry.timer or 0
+            entries_by_date[date_str]["entries"].append(
+                {
+                    "id": entry.id,
+                    "beskrivelse": entry.beskrivelse,
+                    "timer": entry.timer,
+                    "jobb_tittel": entry.jobb.tittel if entry.jobb else None,
+                    "jobb_id": entry.jobb.ordre_nr if entry.jobb else None,
+                    "created_at": entry.created_at,
+                }
+            )
+
+        # Convert to list and sort by date
+        result = sorted(entries_by_date.values(), key=lambda x: x["date"], reverse=True)
+
+        return Response(
+            {
+                "user_id": user.id,
+                "username": user.username,
+                "date_range": {
+                    "start_date": start_date,
+                    "end_date": end_date,
+                },
+                "total_dates": len(result),
+                "entries_by_date": result,
+            }
+        )
