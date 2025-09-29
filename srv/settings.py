@@ -188,6 +188,7 @@ CSRF_TRUSTED_ORIGINS = [
 ]
 
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+USE_TLS = True
 
 
 # * Spec settings for drf_spectacular
