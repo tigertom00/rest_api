@@ -1284,6 +1284,95 @@ class JobbMatriellViewSet(viewsets.ModelViewSet):
     filterset_class = JobbMatriellFilter
     search_fields = ["matriell__el_nr", "matriell__tittel", "jobb__tittel"]
 
+    @action(detail=False, methods=["get"])
+    def recent(self, request):
+        """
+        Get materials added to jobs in the last N days.
+        Query params:
+        - days: Number of days to look back (default: 30)
+        - jobb_id: Filter by specific job (optional)
+        """
+        from datetime import timedelta
+
+        # Get days parameter (default to 30)
+        try:
+            days = int(request.query_params.get("days", 30))
+            if days < 1:
+                return Response(
+                    {"error": "days parameter must be at least 1"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+        except ValueError:
+            return Response(
+                {"error": "days parameter must be a valid integer"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Calculate cutoff date
+        cutoff_date = timezone.now() - timedelta(days=days)
+
+        # Start with base queryset
+        queryset = JobbMatriell.objects.filter(
+            created_at__gte=cutoff_date
+        ).select_related("matriell__leverandor", "matriell__kategori", "jobb")
+
+        # Optional job filter
+        jobb_id = request.query_params.get("jobb_id")
+        if jobb_id:
+            try:
+                jobb = Jobber.objects.get(ordre_nr=jobb_id)
+                queryset = queryset.filter(jobb=jobb)
+            except Jobber.DoesNotExist:
+                return Response(
+                    {"error": f"Job with ordre_nr '{jobb_id}' not found"},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+
+        # Order by most recent first
+        queryset = queryset.order_by("-created_at")
+
+        # Serialize the results
+        results = []
+        for jobb_matriell in queryset:
+            matriell = jobb_matriell.matriell
+            results.append(
+                {
+                    "id": jobb_matriell.id,
+                    "created_at": jobb_matriell.created_at,
+                    "antall": jobb_matriell.antall,
+                    "transf": jobb_matriell.transf,
+                    "jobb": {
+                        "ordre_nr": jobb_matriell.jobb.ordre_nr,
+                        "tittel": jobb_matriell.jobb.tittel,
+                        "ferdig": jobb_matriell.jobb.ferdig,
+                    },
+                    "matriell": {
+                        "id": matriell.id,
+                        "el_nr": matriell.el_nr,
+                        "tittel": matriell.tittel,
+                        "varemerke": matriell.varemerke,
+                        "leverandor_name": (
+                            matriell.leverandor.name if matriell.leverandor else None
+                        ),
+                        "kategori_name": (
+                            matriell.kategori.kategori if matriell.kategori else None
+                        ),
+                        "in_stock": matriell.in_stock,
+                        "approved": matriell.approved,
+                    },
+                }
+            )
+
+        return Response(
+            {
+                "days": days,
+                "cutoff_date": cutoff_date,
+                "jobb_id": jobb_id,
+                "total_count": len(results),
+                "results": results,
+            }
+        )
+
 
 class JobberImageViewSet(viewsets.ModelViewSet):
     queryset = JobberImage.objects.all().order_by("-created_at")
