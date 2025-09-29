@@ -1,4 +1,5 @@
 from rest_framework import serializers
+from restAPI.serializers import UserBasicSerializer
 
 from .models import (
     ElektriskKategori,
@@ -241,6 +242,7 @@ class JobbMatriellSerializer(serializers.ModelSerializer):
     matriell_id = serializers.PrimaryKeyRelatedField(
         queryset=Matriell.objects.all(), source="matriell", write_only=True
     )
+    user = UserBasicSerializer(read_only=True)
 
     class Meta:
         model = JobbMatriell
@@ -271,6 +273,9 @@ class JobberSerializer(serializers.ModelSerializer):
 
 
 class TimelisteSerializer(serializers.ModelSerializer):
+    user = UserBasicSerializer(read_only=True)
+    jobb_tittel = serializers.CharField(source="jobb.tittel", read_only=True)
+
     class Meta:
         model = Timeliste
         fields = "__all__"

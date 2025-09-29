@@ -165,6 +165,41 @@ class AdminPasswordResetSerializer(serializers.Serializer):
         return value
 
 
+class UserBasicSerializer(serializers.ModelSerializer):
+    """Lightweight user info for use in other app serializers (memo, tasks, etc.)"""
+
+    class Meta:
+        model = Users
+        fields = ["id", "username", "display_name", "email", "phone", "profile_picture"]
+        read_only_fields = fields
+
+
+class UserDetailSerializer(serializers.ModelSerializer):
+    """Detailed user info including first/last name and computed full name"""
+
+    full_name = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Users
+        fields = [
+            "id",
+            "username",
+            "display_name",
+            "first_name",
+            "last_name",
+            "full_name",
+            "email",
+            "phone",
+            "profile_picture",
+            "clerk_profile_image_url",
+        ]
+        read_only_fields = fields
+
+    def get_full_name(self, obj):
+        full = f"{obj.first_name} {obj.last_name}".strip()
+        return full if full else obj.display_name
+
+
 # * ElektriskKategori Serializer
 class ElektriskKategoriSerializer(serializers.ModelSerializer):
     class Meta:

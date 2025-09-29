@@ -203,6 +203,7 @@ class JobbMatriell(models.Model):
     jobb = models.ForeignKey(
         Jobber, on_delete=models.CASCADE, related_name="jobbmatriell"
     )
+    user = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True)
     transf = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

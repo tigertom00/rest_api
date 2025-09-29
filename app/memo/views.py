@@ -1131,7 +1131,7 @@ class JobberViewSet(viewsets.ModelViewSet):
                 jobb_matriell, created = JobbMatriell.objects.get_or_create(
                     jobb=jobb,
                     matriell=matriell,
-                    defaults={"antall": antall, "transf": transf},
+                    defaults={"antall": antall, "transf": transf, "user": request.user},
                 )
 
                 if not created:
@@ -1291,6 +1291,8 @@ class JobbMatriellViewSet(viewsets.ModelViewSet):
         Query params:
         - days: Number of days to look back (default: 30)
         - jobb_id: Filter by specific job (optional)
+        - user_id: Filter by specific user (optional, defaults to current user)
+        - all_users: Set to 'true' to see all users' additions (default: false)
         """
         from datetime import timedelta
 
@@ -1314,7 +1316,29 @@ class JobbMatriellViewSet(viewsets.ModelViewSet):
         # Start with base queryset
         queryset = JobbMatriell.objects.filter(
             created_at__gte=cutoff_date
-        ).select_related("matriell__leverandor", "matriell__kategori", "jobb")
+        ).select_related("matriell__leverandor", "matriell__kategori", "jobb", "user")
+
+        # User filtering
+        all_users = request.query_params.get("all_users", "").lower() == "true"
+        user_id = request.query_params.get("user_id")
+
+        if not all_users:
+            if user_id:
+                # Filter by specific user
+                from django.contrib.auth import get_user_model
+
+                User = get_user_model()
+                try:
+                    user = User.objects.get(id=user_id)
+                    queryset = queryset.filter(user=user)
+                except User.DoesNotExist:
+                    return Response(
+                        {"error": f"User with id {user_id} not found"},
+                        status=status.HTTP_404_NOT_FOUND,
+                    )
+            else:
+                # Default to current user
+                queryset = queryset.filter(user=request.user)
 
         # Optional job filter
         jobb_id = request.query_params.get("jobb_id")
@@ -1331,45 +1355,18 @@ class JobbMatriellViewSet(viewsets.ModelViewSet):
         # Order by most recent first
         queryset = queryset.order_by("-created_at")
 
-        # Serialize the results
-        results = []
-        for jobb_matriell in queryset:
-            matriell = jobb_matriell.matriell
-            results.append(
-                {
-                    "id": jobb_matriell.id,
-                    "created_at": jobb_matriell.created_at,
-                    "antall": jobb_matriell.antall,
-                    "transf": jobb_matriell.transf,
-                    "jobb": {
-                        "ordre_nr": jobb_matriell.jobb.ordre_nr,
-                        "tittel": jobb_matriell.jobb.tittel,
-                        "ferdig": jobb_matriell.jobb.ferdig,
-                    },
-                    "matriell": {
-                        "id": matriell.id,
-                        "el_nr": matriell.el_nr,
-                        "tittel": matriell.tittel,
-                        "varemerke": matriell.varemerke,
-                        "leverandor_name": (
-                            matriell.leverandor.name if matriell.leverandor else None
-                        ),
-                        "kategori_name": (
-                            matriell.kategori.kategori if matriell.kategori else None
-                        ),
-                        "in_stock": matriell.in_stock,
-                        "approved": matriell.approved,
-                    },
-                }
-            )
+        # Serialize the results using the serializer for consistent formatting
+        serializer = self.get_serializer(queryset, many=True)
 
         return Response(
             {
                 "days": days,
                 "cutoff_date": cutoff_date,
                 "jobb_id": jobb_id,
-                "total_count": len(results),
-                "results": results,
+                "user_id": user_id,
+                "all_users": all_users,
+                "total_count": queryset.count(),
+                "results": serializer.data,
             }
         )
 
