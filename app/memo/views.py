@@ -1658,6 +1658,10 @@ class TimelisteViewSet(viewsets.ModelViewSet):
     filterset_class = TimelisteFilter
     search_fields = ["beskrivelse", "jobb__tittel", "user__username"]
 
+    def perform_create(self, serializer):
+        """Automatically set the user from the request."""
+        serializer.save(user=self.request.user)
+
     @action(detail=False, methods=["get"])
     def user_stats(self, request):
         """
