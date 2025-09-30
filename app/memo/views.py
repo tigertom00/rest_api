@@ -391,62 +391,44 @@ class MatriellViewSet(viewsets.ModelViewSet):
         """
         Import data from EFO Basen JSON format.
         Expects the structured JSON format with foreign key lookups by name/blokknummer.
-        Accepts both single objects and arrays of objects.
+        Returns the created or updated Matriell object.
         """
         data = request.data
-        if not isinstance(data, list):
-            data = [data]
 
-        results = {
-            "created": 0,
-            "updated": 0,
-            "errors": [],
-            "total_processed": len(data),
-        }
+        try:
+            el_nr = data.get("el_nr")
+            if not el_nr:
+                return Response(
+                    {"error": "Missing el_nr"}, status=status.HTTP_400_BAD_REQUEST
+                )
 
-        with transaction.atomic():
-            for i, item in enumerate(data):
-                try:
-                    el_nr = item.get("el_nr")
-                    if not el_nr:
-                        results["errors"].append(f"Item {i}: Missing el_nr")
-                        continue
+            # Check if product already exists
+            existing = Matriell.objects.filter(el_nr=el_nr).first()
+            if existing:
+                # Update existing
+                serializer = self.get_serializer(existing, data=data, partial=True)
+                if serializer.is_valid():
+                    serializer.save()
+                    return Response(serializer.data, status=status.HTTP_200_OK)
+                else:
+                    return Response(
+                        serializer.errors, status=status.HTTP_400_BAD_REQUEST
+                    )
+            else:
+                # Create new
+                serializer = self.get_serializer(data=data)
+                if serializer.is_valid():
+                    serializer.save()
+                    return Response(serializer.data, status=status.HTTP_201_CREATED)
+                else:
+                    return Response(
+                        serializer.errors, status=status.HTTP_400_BAD_REQUEST
+                    )
 
-                    # Check if product already exists
-                    existing = Matriell.objects.filter(el_nr=el_nr).first()
-                    if existing:
-                        # Update existing
-                        serializer = self.get_serializer(
-                            existing, data=item, partial=True
-                        )
-                        if serializer.is_valid():
-                            serializer.save()
-                            results["updated"] += 1
-                        else:
-                            results["errors"].append(
-                                f"Item {i} (el_nr: {el_nr}): {serializer.errors}"
-                            )
-                    else:
-                        # Create new
-                        serializer = self.get_serializer(data=item)
-                        if serializer.is_valid():
-                            serializer.save()
-                            results["created"] += 1
-                        else:
-                            results["errors"].append(
-                                f"Item {i} (el_nr: {el_nr}): {serializer.errors}"
-                            )
-
-                except Exception as e:
-                    results["errors"].append(f"Item {i}: {str(e)}")
-
-        # Determine response status
-        if results["errors"]:
-            response_status = status.HTTP_207_MULTI_STATUS  # Partial success
-        else:
-            response_status = status.HTTP_201_CREATED
-
-        return Response(results, status=response_status)
+        except Exception as e:
+            return Response(
+                {"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
     @action(detail=True, methods=["post", "delete", "get"])
     def favorite(self, request, pk=None):
