@@ -287,7 +287,7 @@ class MatriellFavoriteSerializer(serializers.ModelSerializer):
     Optimized for performance when listing many favorites.
     """
 
-    leverandor_name = serializers.CharField(source="leverandor.name", read_only=True)
+    leverandor = LeverandorerSerializer(read_only=True)
     kategori_name = serializers.CharField(source="kategori.kategori", read_only=True)
 
     class Meta:
@@ -298,7 +298,7 @@ class MatriellFavoriteSerializer(serializers.ModelSerializer):
             "tittel",
             "varemerke",
             "varenummer",
-            "leverandor_name",
+            "leverandor",
             "kategori_name",
             "approved",
             "in_stock",
