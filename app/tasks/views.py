@@ -14,11 +14,7 @@ from rest_framework.response import Response
 from restAPI.utils.audit import AuditLogger
 from restAPI.utils.caching import CacheManager, QueryOptimizer, cache_api_response
 from restAPI.utils.monitoring import monitor_performance
-from restAPI.utils.throttling import (
-    APIRateThrottle,
-    BulkOperationRateThrottle,
-    DatabaseOperationThrottle,
-)
+from restAPI.utils.throttling import BulkOperationRateThrottle
 
 from .models import Category, Project, ProjectImage, Task, TaskImage
 from .serializers import (
@@ -45,8 +41,8 @@ class TaskViewSet(viewsets.ModelViewSet):
     serializer_class = TaskSerializer
     permission_classes = [IsAuthenticated]
     parser_classes = [MultiPartParser, FormParser]
-    # Testing: Re-enable both throttling classes
-    throttle_classes = [APIRateThrottle, DatabaseOperationThrottle]
+    # Testing: Throttling disabled for testing
+    # throttle_classes = [APIRateThrottle, DatabaseOperationThrottle]
 
     def get_queryset(self):
         # Only return tasks for the current user
