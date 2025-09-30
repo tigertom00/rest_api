@@ -1284,6 +1284,10 @@ class JobbMatriellViewSet(viewsets.ModelViewSet):
     filterset_class = JobbMatriellFilter
     search_fields = ["matriell__el_nr", "matriell__tittel", "jobb__tittel"]
 
+    def perform_create(self, serializer):
+        """Automatically set the user from the request when creating JobbMatriell."""
+        serializer.save(user=self.request.user)
+
     @action(detail=False, methods=["get"])
     def recent(self, request):
         """
