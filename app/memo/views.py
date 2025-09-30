@@ -391,7 +391,7 @@ class MatriellViewSet(viewsets.ModelViewSet):
         """
         Import data from EFO Basen JSON format.
         Expects the structured JSON format with foreign key lookups by name/blokknummer.
-        Returns the created or updated Matriell object.
+        Returns the created or updated Matriell object with full details.
         """
         data = request.data
 
@@ -406,23 +406,31 @@ class MatriellViewSet(viewsets.ModelViewSet):
             existing = Matriell.objects.filter(el_nr=el_nr).first()
             if existing:
                 # Update existing
-                serializer = self.get_serializer(existing, data=data, partial=True)
-                if serializer.is_valid():
-                    serializer.save()
-                    return Response(serializer.data, status=status.HTTP_200_OK)
+                import_serializer = self.get_serializer(
+                    existing, data=data, partial=True
+                )
+                if import_serializer.is_valid():
+                    matriell = import_serializer.save()
+                    # Return full object using MatriellSerializer
+                    response_serializer = MatriellSerializer(matriell)
+                    return Response(response_serializer.data, status=status.HTTP_200_OK)
                 else:
                     return Response(
-                        serializer.errors, status=status.HTTP_400_BAD_REQUEST
+                        import_serializer.errors, status=status.HTTP_400_BAD_REQUEST
                     )
             else:
                 # Create new
-                serializer = self.get_serializer(data=data)
-                if serializer.is_valid():
-                    serializer.save()
-                    return Response(serializer.data, status=status.HTTP_201_CREATED)
+                import_serializer = self.get_serializer(data=data)
+                if import_serializer.is_valid():
+                    matriell = import_serializer.save()
+                    # Return full object using MatriellSerializer
+                    response_serializer = MatriellSerializer(matriell)
+                    return Response(
+                        response_serializer.data, status=status.HTTP_201_CREATED
+                    )
                 else:
                     return Response(
-                        serializer.errors, status=status.HTTP_400_BAD_REQUEST
+                        import_serializer.errors, status=status.HTTP_400_BAD_REQUEST
                     )
 
         except Exception as e:
