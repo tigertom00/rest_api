@@ -26,9 +26,9 @@ class GeocodingService:
         if not address or not address.strip():
             return None
 
-        # Normalize address for cache key
-        normalized_address = address.lower().strip()
-        cache_key = f"geocode:{normalized_address}"
+        # Normalize address for cache key (replace problematic characters)
+        normalized_address = address.lower().strip().replace(" ", "_").replace(":", "_")
+        cache_key = f"geocode_{normalized_address}"
 
         # Check cache first
         cached_result = cache.get(cache_key)
