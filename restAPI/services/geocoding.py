@@ -17,33 +17,73 @@ class GeocodingService:
     CACHE_TIMEOUT = 86400 * 30  # 30 days
 
     @classmethod
-    def geocode_address(cls, address: str) -> Optional[dict]:
+    def geocode_address(cls, address) -> Optional[dict]:
         """
         Geocode a Norwegian address using Kartverket API
 
         Args:
-            address: Norwegian address string
+            address: Either a string ("Storgata 1, 0001 Oslo") or a dict with
+                    structured address data:
+                    {'adresse': 'Storgata 1', 'postnummer': '0001', 'poststed': 'Oslo'}
 
         Returns:
             dict: {'lat': float, 'lon': float, 'accuracy': str}
             None: if geocoding failed
         """
-        if not address or not address.strip():
-            return None
+        # Handle both string and dict input
+        if isinstance(address, dict):
+            # Structured address data - use specific Kartverket parameters
+            address_str = address.get("adresse", "")
+            postnummer = address.get("postnummer", "")
+            poststed = address.get("poststed", "")
 
-        # Normalize address for cache key (replace problematic characters)
-        normalized_address = address.lower().strip().replace(" ", "_").replace(":", "_")
-        cache_key = f"geocode_{normalized_address}"
+            if not address_str or not address_str.strip():
+                return None
 
-        # Check cache first
-        cached_result = cache.get(cache_key)
-        if cached_result:
-            return cached_result
+            # Build cache key from structured data
+            cache_parts = [address_str, postnummer, poststed]
+            normalized_address = (
+                "_".join(p for p in cache_parts if p).lower().replace(" ", "_")
+            )
+            cache_key = f"geocode_{normalized_address}"
+
+            # Check cache first
+            cached_result = cache.get(cache_key)
+            if cached_result:
+                return cached_result
+
+            # Build API params with structured data (more accurate)
+            params = {"treffPerSide": 1}
+
+            if address_str:
+                params["adressetekst"] = address_str
+            if postnummer:
+                params["postnummer"] = postnummer
+            if poststed:
+                params["poststed"] = poststed
+
+        else:
+            # Simple string address - fallback to general search
+            if not address or not address.strip():
+                return None
+
+            normalized_address = (
+                address.lower().strip().replace(" ", "_").replace(":", "_")
+            )
+            cache_key = f"geocode_{normalized_address}"
+
+            # Check cache first
+            cached_result = cache.get(cache_key)
+            if cached_result:
+                return cached_result
+
+            # Use general search parameter
+            params = {"sok": address, "treffPerSide": 1}
 
         try:
             response = requests.get(
                 cls.KARTVERKET_SEARCH_URL,
-                params={"sok": address, "treffPerSide": 1},
+                params=params,
                 timeout=5,
             )
 

@@ -174,19 +174,54 @@ def nearby(self, request):
     # Serialize...
 ```
 
-## Multiple Address Fields
+## Structured Address Data (Recommended)
 
-If your address is composed of multiple fields:
+For **more accurate geocoding**, use structured address data instead of concatenated strings:
 
 ```python
 class MyModel(GeocodableMixin, models.Model):
-    street = models.CharField(max_length=100)
-    city = models.CharField(max_length=100)
-    postal_code = models.CharField(max_length=10)
+    street_address = models.CharField(max_length=255)
+    postnummer = models.CharField(max_length=4)  # 4-digit Norwegian postal code
+    poststed = models.CharField(max_length=100)  # City/postal area
 
     def get_address_for_geocoding(self):
-        """Override to compose address from multiple fields"""
-        return f"{self.street}, {self.postal_code} {self.city}"
+        """Return structured address data for accurate geocoding"""
+        return {
+            'adresse': self.street_address,
+            'postnummer': self.postnummer,
+            'poststed': self.poststed
+        }
+```
+
+**Benefits of structured addresses:**
+- ✅ More accurate geocoding (uses Kartverket's specific API parameters)
+- ✅ Better handling of ambiguous addresses (multiple "Storgata 1" in Norway)
+- ✅ Proper validation per field
+- ✅ Follows Norwegian address standards
+
+**Backward compatibility:**
+If you return a simple string, it still works but uses general search (less accurate).
+
+### Example: Jobber Model
+
+See `app/memo/models.py` for a real-world example:
+
+```python
+class Jobber(GeocodableMixin, models.Model):
+    adresse = models.CharField(max_length=256, blank=True)
+    postnummer = models.CharField(max_length=4, blank=True)
+    poststed = models.CharField(max_length=100, blank=True)
+
+    def get_address_for_geocoding(self):
+        # If we have structured data, return as dict
+        if self.postnummer or self.poststed:
+            return {
+                'adresse': self.adresse,
+                'postnummer': self.postnummer,
+                'poststed': self.poststed,
+            }
+        # Fallback to simple string (backward compatible)
+        return self.adresse
 ```
 
 ## Configuration

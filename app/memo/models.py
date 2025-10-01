@@ -176,6 +176,12 @@ class Jobber(GeocodableMixin, models.Model):
     ordre_nr = models.PositiveSmallIntegerField(primary_key=True)
     tittel = models.CharField(max_length=64, unique=True, blank=True)
     adresse = models.CharField(max_length=256, blank=True)
+    postnummer = models.CharField(
+        max_length=4, blank=True, help_text="4-digit Norwegian postal code"
+    )
+    poststed = models.CharField(
+        max_length=100, blank=True, help_text="City/postal area name"
+    )
     telefon_nr = models.CharField(max_length=64, blank=True)
     beskrivelse = models.TextField(blank=True)
     date = models.DateTimeField(auto_now_add=True)
@@ -198,6 +204,21 @@ class Jobber(GeocodableMixin, models.Model):
             models.Index(fields=["latitude", "longitude"]),
             models.Index(fields=["ferdig", "latitude", "longitude"]),
         ]
+
+    def get_address_for_geocoding(self):
+        """
+        Return structured address data for more accurate geocoding.
+        Falls back to string concatenation if postal code/city not provided.
+        """
+        # If we have structured data, return as dict
+        if self.postnummer or self.poststed:
+            return {
+                "adresse": self.adresse,
+                "postnummer": self.postnummer,
+                "poststed": self.poststed,
+            }
+        # Fallback to simple string (backward compatible)
+        return self.adresse
 
     @property
     def total_hours(self):
