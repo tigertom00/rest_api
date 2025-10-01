@@ -1,8 +1,9 @@
 from django.core.management.base import BaseCommand
 from django.utils import timezone
 
+from restAPI.services import GeocodingService
+
 from app.memo.models import Jobber
-from app.memo.services.geocoding import GeocodingService
 
 
 class Command(BaseCommand):

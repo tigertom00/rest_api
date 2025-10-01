@@ -9,9 +9,10 @@ def geocode_job_on_address_change(sender, instance, created, **kwargs):
     """
     Automatically trigger geocoding when a job is created or its address changes
     Uses Celery for async processing to avoid blocking the save operation
-    """
-    from .tasks import geocode_job_async
 
+    Note: This can be replaced with a generic signal handler if you have
+    many models that need geocoding. See restAPI.signals for a generic version.
+    """
     # Check if we should geocode
     should_geocode = False
 
@@ -28,5 +29,7 @@ def geocode_job_on_address_change(sender, instance, created, **kwargs):
             pass
 
     if should_geocode:
-        # Trigger async geocoding task
-        geocode_job_async.delay(instance.ordre_nr)
+        # Use the global geocoding task
+        from restAPI.tasks import geocode_model_instance
+
+        geocode_model_instance.delay("memo", "Jobber", instance.ordre_nr)

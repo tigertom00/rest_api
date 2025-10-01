@@ -13,8 +13,9 @@ def geocode_job_async(self, job_id: int):
     Returns:
         dict: Result summary with geocoding status
     """
+    from restAPI.services import GeocodingService
+
     from .models import Jobber
-    from .services.geocoding import GeocodingService
 
     try:
         job = Jobber.objects.get(pk=job_id)

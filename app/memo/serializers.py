@@ -289,7 +289,7 @@ class JobberSerializer(serializers.ModelSerializer):
         user_lon = self.context.get("user_lon")
 
         if user_lat and user_lon and obj.latitude and obj.longitude:
-            from .services.geocoding import GeocodingService
+            from restAPI.services import GeocodingService
 
             return round(
                 GeocodingService.calculate_distance(

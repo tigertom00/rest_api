@@ -1279,7 +1279,7 @@ class JobberViewSet(viewsets.ModelViewSet):
         Returns:
             List of jobs within radius, sorted by distance
         """
-        from .services.geocoding import GeocodingService
+        from restAPI.services import GeocodingService
 
         # Validate required parameters
         try:
