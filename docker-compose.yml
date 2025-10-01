@@ -41,6 +41,12 @@ services:
     restart: unless-stopped
     networks:
       - main-network
+    healthcheck:
+      test: celery -A srv inspect ping -d celery@$$HOSTNAME
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
 
   celery-beat:
     image: tigertom/rest_api
@@ -56,6 +62,12 @@ services:
     restart: unless-stopped
     networks:
       - main-network
+    healthcheck:
+      test: ["CMD-SHELL", "pgrep -f 'celery -A srv beat' || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
 
   nginx:
     image: nginx:latest
