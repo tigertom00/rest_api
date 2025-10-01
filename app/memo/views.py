@@ -1265,6 +1265,119 @@ class JobberViewSet(viewsets.ModelViewSet):
             }
         )
 
+    @action(detail=False, methods=["get"])
+    def nearby(self, request):
+        """
+        Get jobs near a location based on GPS coordinates.
+
+        Query parameters:
+            - lat (required): User's latitude
+            - lon (required): User's longitude
+            - radius (optional, default=100): Search radius in meters
+            - ferdig (optional): Filter by completion status (true/false)
+
+        Returns:
+            List of jobs within radius, sorted by distance
+        """
+        from .services.geocoding import GeocodingService
+
+        # Validate required parameters
+        try:
+            user_lat = float(request.query_params.get("lat"))
+            user_lon = float(request.query_params.get("lon"))
+        except (TypeError, ValueError):
+            return Response(
+                {"error": "lat and lon are required and must be valid numbers"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Optional parameters
+        radius = float(request.query_params.get("radius", 100))
+        ferdig = request.query_params.get("ferdig")
+
+        # Start with jobs that have coordinates
+        queryset = self.queryset.filter(latitude__isnull=False, longitude__isnull=False)
+
+        # Filter by completion status if provided
+        if ferdig is not None:
+            queryset = queryset.filter(ferdig=ferdig.lower() == "true")
+
+        # Performance optimization: bounding box pre-filter
+        bbox = GeocodingService.get_bounding_box(user_lat, user_lon, radius)
+        queryset = queryset.filter(
+            latitude__gte=bbox["lat_min"],
+            latitude__lte=bbox["lat_max"],
+            longitude__gte=bbox["lon_min"],
+            longitude__lte=bbox["lon_max"],
+        )
+
+        # Calculate exact distances and filter by radius
+        nearby_jobs = []
+        for job in queryset:
+            distance = GeocodingService.calculate_distance(
+                user_lat, user_lon, float(job.latitude), float(job.longitude)
+            )
+
+            if distance <= radius:
+                nearby_jobs.append({"job": job, "distance": distance})
+
+        # Sort by distance (closest first)
+        nearby_jobs.sort(key=lambda x: x["distance"])
+
+        # Paginate results
+        jobs_list = [item["job"] for item in nearby_jobs]
+        page = self.paginate_queryset(jobs_list)
+
+        if page is not None:
+            serializer = self.get_serializer(
+                page, many=True, context={"user_lat": user_lat, "user_lon": user_lon}
+            )
+            return self.get_paginated_response(serializer.data)
+
+        # Serialize with distance context
+        serializer = self.get_serializer(
+            jobs_list, many=True, context={"user_lat": user_lat, "user_lon": user_lon}
+        )
+
+        return Response(serializer.data)
+
+    @action(detail=False, methods=["get"])
+    def heatmap(self, request):
+        """
+        Get job locations for heatmap visualization.
+
+        Query parameters:
+            - ferdig (optional): Filter by completion status (true/false)
+
+        Returns:
+            List of job coordinates with minimal data for map visualization
+        """
+        queryset = self.queryset.filter(latitude__isnull=False, longitude__isnull=False)
+
+        # Optional filter by completion status
+        ferdig = request.query_params.get("ferdig")
+        if ferdig is not None:
+            queryset = queryset.filter(ferdig=ferdig.lower() == "true")
+
+        # Return lightweight data for visualization
+        heatmap_data = [
+            {
+                "lat": float(job.latitude),
+                "lon": float(job.longitude),
+                "ordre_nr": job.ordre_nr,
+                "tittel": job.tittel,
+                "ferdig": job.ferdig,
+            }
+            for job in queryset
+        ]
+
+        return Response(
+            {
+                "total_jobs": len(heatmap_data),
+                "jobs": heatmap_data,
+            }
+        )
+
 
 class JobbMatriellViewSet(viewsets.ModelViewSet):
     queryset = JobbMatriell.objects.all().order_by("-created_at")

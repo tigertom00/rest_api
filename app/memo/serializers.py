@@ -266,10 +266,38 @@ class JobberSerializer(serializers.ModelSerializer):
     images = JobberImageSerializer(many=True, read_only=True)
     files = JobberFileSerializer(many=True, read_only=True)
     total_hours = serializers.ReadOnlyField()
+    distance = serializers.SerializerMethodField()
 
     class Meta:
         model = Jobber
         fields = "__all__"
+        read_only_fields = [
+            "latitude",
+            "longitude",
+            "geocoded_at",
+            "geocode_accuracy",
+            "geocode_retries",
+            "last_geocode_attempt",
+        ]
+
+    def get_distance(self, obj):
+        """
+        Calculate distance from user's location if provided in context
+        Returns distance in meters, or None if user location not provided
+        """
+        user_lat = self.context.get("user_lat")
+        user_lon = self.context.get("user_lon")
+
+        if user_lat and user_lon and obj.latitude and obj.longitude:
+            from .services.geocoding import GeocodingService
+
+            return round(
+                GeocodingService.calculate_distance(
+                    user_lat, user_lon, float(obj.latitude), float(obj.longitude)
+                ),
+                1,
+            )
+        return None
 
 
 class TimelisteSerializer(serializers.ModelSerializer):

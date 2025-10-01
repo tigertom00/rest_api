@@ -185,9 +185,53 @@ class Jobber(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    # Geocoding fields
+    latitude = models.DecimalField(
+        max_digits=10,
+        decimal_places=7,
+        null=True,
+        blank=True,
+        help_text="Latitude coordinate from geocoded address",
+    )
+    longitude = models.DecimalField(
+        max_digits=10,
+        decimal_places=7,
+        null=True,
+        blank=True,
+        help_text="Longitude coordinate from geocoded address",
+    )
+    geocoded_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="Timestamp when address was last geocoded",
+    )
+    geocode_accuracy = models.CharField(
+        max_length=50,
+        null=True,
+        blank=True,
+        choices=[
+            ("exact", "Exact Match"),
+            ("approximate", "Approximate Match"),
+            ("failed", "Geocoding Failed"),
+        ],
+        help_text="Quality of geocoding result",
+    )
+    geocode_retries = models.SmallIntegerField(
+        default=0, help_text="Number of geocoding retry attempts"
+    )
+    last_geocode_attempt = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="Timestamp of last geocoding attempt",
+    )
+
     class Meta:
         verbose_name = "Jobb"
         verbose_name_plural = "Jobber"
+        indexes = [
+            models.Index(fields=["latitude", "longitude"]),
+            models.Index(fields=["ferdig", "latitude", "longitude"]),
+        ]
 
     @property
     def total_hours(self):
