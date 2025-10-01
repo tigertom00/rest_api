@@ -43,7 +43,14 @@ def geocode_model_instance(self, app_label: str, model_name: str, instance_id: i
 
     address = instance.get_address_for_geocoding()
 
-    if not address or not address.strip():
+    # Handle both string and dict address formats
+    if not address:
+        return {"success": False, "error": "No address to geocode"}
+
+    if isinstance(address, str) and not address.strip():
+        return {"success": False, "error": "No address to geocode"}
+
+    if isinstance(address, dict) and not address.get("adresse", "").strip():
         return {"success": False, "error": "No address to geocode"}
 
     # Update last attempt timestamp
