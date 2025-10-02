@@ -48,6 +48,7 @@ INSTALLED_APPS = [
     "app.memo",
     "app.components",
     "app.docker_monitor",  # Docker container monitoring
+    "app.chat",  # Chat system
     "mcp_server",  # MCP server for AI integration
 ]
 
@@ -267,7 +268,10 @@ else:
 ASGI_APPLICATION = "srv.asgi.application"
 CHANNEL_LAYERS = {
     "default": {
-        "BACKEND": "channels.layers.InMemoryChannelLayer",
+        "BACKEND": "channels_redis.core.RedisChannelLayer",
+        "CONFIG": {
+            "hosts": [("127.0.0.1", 6379)],
+        },
     },
 }
 # * Gotify settings for push notifications

@@ -1,5 +1,6 @@
 import os
 import uuid
+from django.utils import timezone
 
 from django.contrib.auth.models import AbstractUser, UserManager
 from django.db import models
@@ -78,7 +79,6 @@ class CustomUser(AbstractUser):
     has_image = models.BooleanField(default=False)
     two_factor_enabled = models.BooleanField(default=False)
     clerk_updated_at = models.DateTimeField(auto_now=True)
-    chat_session_id = models.UUIDField(default=uuid.uuid4, blank=True, null=True)
     language = models.CharField(
         max_length=10,
         choices=[
@@ -166,3 +166,68 @@ class AuditLog(models.Model):
 
     def __str__(self):
         return f"{self.timestamp} - {self.user_email or 'Anonymous'} - {self.action} - {self.resource}"
+
+
+class ChatSession(models.Model):
+    """Track individual chat sessions for users across multiple devices"""
+
+    SESSION_TYPES = [
+        ("web", "Web Browser"),
+        ("mobile", "Mobile App"),
+        ("desktop", "Desktop App"),
+        ("api", "API Client"),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(
+        "CustomUser", on_delete=models.CASCADE, related_name="chat_sessions"
+    )
+    session_type = models.CharField(max_length=20, choices=SESSION_TYPES, default="web")
+
+    # Connection tracking
+    websocket_channel = models.CharField(max_length=255, blank=True, null=True)
+    is_active = models.BooleanField(default=True)
+    last_ping = models.DateTimeField(auto_now=True)
+
+    # Device/Client info
+    user_agent = models.TextField(blank=True)
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
+    device_id = models.CharField(max_length=255, blank=True, null=True)
+
+    # n8n integration for chatbot
+    n8n_conversation_id = models.CharField(max_length=255, blank=True, null=True)
+    is_bot_session = models.BooleanField(default=False)
+    bot_context = models.JSONField(default=dict, blank=True)
+
+    # Timestamps
+    created_at = models.DateTimeField(auto_now_add=True)
+    connected_at = models.DateTimeField(null=True, blank=True)
+    disconnected_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["-last_ping"]
+        indexes = [
+            models.Index(fields=["user", "is_active"]),
+            models.Index(fields=["websocket_channel"]),
+            models.Index(fields=["last_ping"]),
+        ]
+
+    def __str__(self):
+        return f"{self.user.email} - {self.session_type} ({self.id})"
+
+    def get_n8n_session_id(self):
+        """Return appropriate ID for n8n webhook"""
+        return self.n8n_conversation_id or str(self.id)
+
+    def update_connection(self, channel_name=None, user_agent=None, ip_address=None):
+        """Update connection information"""
+        if channel_name:
+            self.websocket_channel = channel_name
+        if user_agent:
+            self.user_agent = user_agent
+        if ip_address:
+            self.ip_address = ip_address
+        if not self.connected_at:
+            self.connected_at = timezone.now()
+        self.is_active = True
+        self.save()
