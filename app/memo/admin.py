@@ -2,6 +2,7 @@ from django import forms
 from django.contrib import admin
 
 from .models import (
+    ActiveTimerSession,
     ElektriskKategori,
     Jobber,
     JobberFile,
@@ -180,3 +181,21 @@ class JobberFileAdmin(admin.ModelAdmin):
 class TimelisteAdmin(admin.ModelAdmin):
     list_display = ("id", "user", "jobb", "dato", "timer", "created_at", "updated_at")
     list_filter = ("user", "jobb", "dato", "timer")
+
+
+@admin.register(ActiveTimerSession)
+class ActiveTimerSessionAdmin(admin.ModelAdmin):
+    list_display = ("id", "user", "jobb", "start_time", "last_ping", "elapsed_time")
+    list_filter = ("user", "jobb", "start_time")
+    search_fields = ("user__username", "jobb__tittel", "jobb__ordre_nr")
+    readonly_fields = ("start_time", "last_ping", "elapsed_time")
+
+    def elapsed_time(self, obj):
+        """Display elapsed time in human-readable format."""
+        seconds = obj.elapsed_seconds
+        hours = seconds // 3600
+        minutes = (seconds % 3600) // 60
+        secs = seconds % 60
+        return f"{hours}h {minutes}m {secs}s"
+
+    elapsed_time.short_description = "Elapsed Time"

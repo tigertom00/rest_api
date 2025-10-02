@@ -287,3 +287,42 @@ class Timeliste(models.Model):
     def __str__(self):
         """Unicode representation of Timeliste."""
         return f"Timeliste for {self.jobb.tittel}"
+
+
+class ActiveTimerSession(models.Model):
+    """
+    Model for tracking active timer sessions.
+    Only one active session per user is allowed.
+    """
+
+    user = models.OneToOneField(
+        User,
+        on_delete=models.CASCADE,
+        help_text="User who started this timer session",
+    )
+    jobb = models.ForeignKey(
+        Jobber, on_delete=models.CASCADE, help_text="Job being tracked"
+    )
+    start_time = models.DateTimeField(
+        auto_now_add=True, help_text="When the timer was started"
+    )
+    last_ping = models.DateTimeField(
+        auto_now=True, help_text="Last heartbeat from frontend"
+    )
+
+    class Meta:
+        verbose_name = "Active Timer Session"
+        verbose_name_plural = "Active Timer Sessions"
+        indexes = [
+            models.Index(fields=["user"]),
+        ]
+
+    def __str__(self):
+        return f"{self.user.username} - {self.jobb.tittel} (started {self.start_time})"
+
+    @property
+    def elapsed_seconds(self):
+        """Calculate elapsed time in seconds since start_time."""
+        from django.utils import timezone
+
+        return int((timezone.now() - self.start_time).total_seconds())

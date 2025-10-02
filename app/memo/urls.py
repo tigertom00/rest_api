@@ -2,6 +2,7 @@ from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 
 from .views import (
+    ActiveTimerSessionViewSet,
     DashboardViewSet,
     ElektriskKategoriViewSet,
     JobberFileViewSet,
@@ -23,6 +24,7 @@ router.register(r"jobbmatriell", JobbMatriellViewSet)
 router.register(r"jobb-images", JobberImageViewSet)
 router.register(r"jobb-files", JobberFileViewSet)
 router.register(r"timeliste", TimelisteViewSet)
+router.register(r"timer", ActiveTimerSessionViewSet, basename="timer")
 
 
 urlpatterns = [

@@ -16,6 +16,7 @@ from .filters import (
     TimelisteFilter,
 )
 from .models import (
+    ActiveTimerSession,
     ElektriskKategori,
     Jobber,
     JobberFile,
@@ -26,6 +27,7 @@ from .models import (
     Timeliste,
 )
 from .serializers import (
+    ActiveTimerSessionSerializer,
     EFOBasenImportSerializer,
     ElektriskKategoriSerializer,
     JobberFileSerializer,
@@ -1931,4 +1933,144 @@ class TimelisteViewSet(viewsets.ModelViewSet):
                 "total_dates": len(result),
                 "entries_by_date": result,
             }
+        )
+
+
+class ActiveTimerSessionViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet for managing active timer sessions.
+    Provides endpoints to start, stop, ping, and retrieve active timers.
+    """
+
+    queryset = ActiveTimerSession.objects.all().select_related("user", "jobb")
+    serializer_class = ActiveTimerSessionSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        """Filter to show only the current user's sessions."""
+        return self.queryset.filter(user=self.request.user)
+
+    @action(detail=False, methods=["post"])
+    def start(self, request):
+        """
+        Start a new timer session.
+        Expects: {"jobb": ordre_nr}
+        Returns: Created session data
+        """
+        jobb_id = request.data.get("jobb")
+
+        if not jobb_id:
+            return Response(
+                {"error": "jobb field is required (ordre_nr)"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Check if user already has an active session
+        existing_session = ActiveTimerSession.objects.filter(user=request.user).first()
+        if existing_session:
+            return Response(
+                {
+                    "error": "You already have an active timer session",
+                    "active_session": ActiveTimerSessionSerializer(
+                        existing_session
+                    ).data,
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Validate job exists
+        try:
+            jobb = Jobber.objects.get(ordre_nr=jobb_id)
+        except Jobber.DoesNotExist:
+            return Response(
+                {"error": f"Job with ordre_nr '{jobb_id}' not found"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        # Create new session
+        session = ActiveTimerSession.objects.create(user=request.user, jobb=jobb)
+
+        serializer = self.get_serializer(session)
+        return Response(
+            {
+                "message": "Timer started successfully",
+                "session": serializer.data,
+            },
+            status=status.HTTP_201_CREATED,
+        )
+
+    @action(detail=True, methods=["post"])
+    def stop(self, request, pk=None):
+        """
+        Stop an active timer session and create a time entry.
+        Returns: Created Timeliste entry
+        """
+        session = self.get_object()
+
+        # Calculate elapsed time
+        elapsed = session.elapsed_seconds
+        hours = round(elapsed / 3600, 2)  # Convert seconds to hours with 2 decimals
+
+        # Get optional description from request
+        beskrivelse = request.data.get("beskrivelse", "")
+
+        # Create Timeliste entry
+        timeliste = Timeliste.objects.create(
+            user=session.user,
+            jobb=session.jobb,
+            beskrivelse=beskrivelse,
+            dato=timezone.now().date(),
+            timer=int(round(hours)),  # Round to nearest hour for SmallIntegerField
+        )
+
+        # Delete the session
+        session.delete()
+
+        # Return the created time entry
+        from .serializers import TimelisteSerializer
+
+        serializer = TimelisteSerializer(timeliste)
+        return Response(
+            {
+                "message": "Timer stopped successfully",
+                "elapsed_seconds": elapsed,
+                "hours": hours,
+                "timeliste": serializer.data,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+    @action(detail=False, methods=["get"])
+    def active(self, request):
+        """
+        Get the current user's active timer session.
+        Returns: Session data or null if no active session
+        """
+        session = ActiveTimerSession.objects.filter(user=request.user).first()
+
+        if session:
+            serializer = self.get_serializer(session)
+            return Response(serializer.data)
+        else:
+            return Response(None, status=status.HTTP_200_OK)
+
+    @action(detail=True, methods=["patch"])
+    def ping(self, request, pk=None):
+        """
+        Update the last_ping timestamp for a session.
+        Used as a heartbeat to track active sessions.
+        Returns: Updated session data
+        """
+        session = self.get_object()
+
+        # The last_ping field has auto_now=True, so just save to update it
+        session.save()
+
+        serializer = self.get_serializer(session)
+        return Response(
+            {
+                "message": "Ping successful",
+                "session": serializer.data,
+            },
+            status=status.HTTP_200_OK,
         )

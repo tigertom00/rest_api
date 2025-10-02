@@ -2,6 +2,7 @@ from rest_framework import serializers
 from restAPI.serializers import UserBasicSerializer
 
 from .models import (
+    ActiveTimerSession,
     ElektriskKategori,
     Jobber,
     JobberFile,
@@ -333,3 +334,29 @@ class MatriellFavoriteSerializer(serializers.ModelSerializer):
             "favorites",
             "created_at",
         ]
+
+
+class ActiveTimerSessionSerializer(serializers.ModelSerializer):
+    """
+    Serializer for active timer sessions.
+    Includes calculated elapsed time and job details.
+    """
+
+    user = UserBasicSerializer(read_only=True)
+    jobb_tittel = serializers.CharField(source="jobb.tittel", read_only=True)
+    jobb_ordre_nr = serializers.IntegerField(source="jobb.ordre_nr", read_only=True)
+    elapsed_seconds = serializers.ReadOnlyField()
+
+    class Meta:
+        model = ActiveTimerSession
+        fields = [
+            "id",
+            "user",
+            "jobb",
+            "jobb_tittel",
+            "jobb_ordre_nr",
+            "start_time",
+            "last_ping",
+            "elapsed_seconds",
+        ]
+        read_only_fields = ["id", "start_time", "last_ping"]
