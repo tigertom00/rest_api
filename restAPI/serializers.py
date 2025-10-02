@@ -35,7 +35,6 @@ class UsersSerializer(serializers.ModelSerializer):
             "date_joined",
             "last_login",
             "theme",
-            "chat_session_id",
             "language",
         )
         read_only_fields = (
@@ -43,7 +42,6 @@ class UsersSerializer(serializers.ModelSerializer):
             "email",
             "date_joined",
             "last_login",
-            "chat_session_id",
         )
 
 
