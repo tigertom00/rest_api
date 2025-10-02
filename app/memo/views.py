@@ -1834,6 +1834,7 @@ class TimelisteViewSet(viewsets.ModelViewSet):
         - start_date: Start date (YYYY-MM-DD, optional)
         - end_date: End date (YYYY-MM-DD, optional)
         - user_id: User ID (optional, defaults to current user)
+        - jobb: Job ID (optional, filters by specific job)
         """
         from datetime import datetime
         from django.db.models import Sum
@@ -1855,6 +1856,18 @@ class TimelisteViewSet(viewsets.ModelViewSet):
                 )
 
         queryset = Timeliste.objects.filter(user=user)
+
+        # Filter by job if jobb parameter is provided
+        jobb_id = request.query_params.get("jobb")
+        if jobb_id:
+            try:
+                jobb = Jobber.objects.get(ordre_nr=jobb_id)
+                queryset = queryset.filter(jobb=jobb)
+            except Jobber.DoesNotExist:
+                return Response(
+                    {"error": f"Job with ordre_nr '{jobb_id}' not found"},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
 
         # Apply date filters
         start_date = request.query_params.get("start_date")
