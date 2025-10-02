@@ -1999,6 +1999,26 @@ class ActiveTimerSessionViewSet(viewsets.ModelViewSet):
             status=status.HTTP_201_CREATED,
         )
 
+    def _round_to_nearest_half_hour(self, minutes):
+        """
+        Round minutes to nearest 30-minute increment with 10-minute tolerance.
+        - If time > 10 minutes over nearest 30-min mark → round up
+        - If time ≤ 10 minutes over → round down
+        - Result is always X.0h or X.5h (30-minute increments)
+        - Minimum: 30 minutes
+        """
+        if minutes < 30:
+            return 30  # Minimum 30 minutes
+
+        lower_mark = (minutes // 30) * 30
+        upper_mark = lower_mark + 30
+        minutes_over = minutes - lower_mark
+
+        if minutes_over <= 10:
+            return lower_mark
+        else:
+            return upper_mark
+
     @action(detail=True, methods=["post"])
     def stop(self, request, pk=None):
         """
@@ -2007,20 +2027,25 @@ class ActiveTimerSessionViewSet(viewsets.ModelViewSet):
         """
         session = self.get_object()
 
-        # Calculate elapsed time
-        elapsed = session.elapsed_seconds
-        hours = round(elapsed / 3600, 2)  # Convert seconds to hours with 2 decimals
+        # Calculate elapsed time in seconds
+        elapsed_seconds = session.elapsed_seconds
+
+        # Convert to minutes and apply rounding logic
+        elapsed_minutes = round(elapsed_seconds / 60)
+        rounded_minutes = self._round_to_nearest_half_hour(elapsed_minutes)
+        rounded_hours = rounded_minutes / 60  # Convert to hours (e.g., 1.5h)
 
         # Get optional description from request
         beskrivelse = request.data.get("beskrivelse", "")
 
-        # Create Timeliste entry
+        # Create Timeliste entry with rounded time stored as minutes
+        # Note: timer field stores minutes as SmallIntegerField
         timeliste = Timeliste.objects.create(
             user=session.user,
             jobb=session.jobb,
             beskrivelse=beskrivelse,
             dato=timezone.now().date(),
-            timer=int(round(hours)),  # Round to nearest hour for SmallIntegerField
+            timer=rounded_minutes,  # Store minutes (30, 60, 90, 120, etc.)
         )
 
         # Delete the session
@@ -2033,8 +2058,10 @@ class ActiveTimerSessionViewSet(viewsets.ModelViewSet):
         return Response(
             {
                 "message": "Timer stopped successfully",
-                "elapsed_seconds": elapsed,
-                "hours": hours,
+                "elapsed_seconds": elapsed_seconds,
+                "elapsed_minutes": elapsed_minutes,
+                "rounded_minutes": rounded_minutes,
+                "rounded_hours": rounded_hours,
                 "timeliste": serializer.data,
             },
             status=status.HTTP_200_OK,
