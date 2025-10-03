@@ -357,6 +357,16 @@ class ActiveTimerSessionSerializer(serializers.ModelSerializer):
             "jobb_ordre_nr",
             "start_time",
             "last_ping",
+            "is_paused",
+            "paused_at",
+            "total_paused_seconds",
             "elapsed_seconds",
         ]
-        read_only_fields = ["id", "start_time", "last_ping"]
+        read_only_fields = [
+            "id",
+            "start_time",
+            "last_ping",
+            "is_paused",
+            "paused_at",
+            "total_paused_seconds",
+        ]

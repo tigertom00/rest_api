@@ -2101,3 +2101,64 @@ class ActiveTimerSessionViewSet(viewsets.ModelViewSet):
             },
             status=status.HTTP_200_OK,
         )
+
+    @action(detail=True, methods=["post"])
+    def pause(self, request, pk=None):
+        """
+        Pause an active timer session.
+        Returns: Updated session data
+        """
+        session = self.get_object()
+
+        if session.is_paused:
+            return Response(
+                {"error": "Timer is already paused"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Mark as paused and record when
+        session.is_paused = True
+        session.paused_at = timezone.now()
+        session.save()
+
+        serializer = self.get_serializer(session)
+        return Response(
+            {
+                "message": "Timer paused successfully",
+                "session": serializer.data,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+    @action(detail=True, methods=["post"])
+    def resume(self, request, pk=None):
+        """
+        Resume a paused timer session.
+        Returns: Updated session data
+        """
+        session = self.get_object()
+
+        if not session.is_paused:
+            return Response(
+                {"error": "Timer is not paused"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Calculate how long it was paused and add to total
+        if session.paused_at:
+            pause_duration = int((timezone.now() - session.paused_at).total_seconds())
+            session.total_paused_seconds += pause_duration
+
+        # Resume the timer
+        session.is_paused = False
+        session.paused_at = None
+        session.save()
+
+        serializer = self.get_serializer(session)
+        return Response(
+            {
+                "message": "Timer resumed successfully",
+                "session": serializer.data,
+            },
+            status=status.HTTP_200_OK,
+        )

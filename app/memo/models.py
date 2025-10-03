@@ -309,6 +309,18 @@ class ActiveTimerSession(models.Model):
     last_ping = models.DateTimeField(
         auto_now=True, help_text="Last heartbeat from frontend"
     )
+    is_paused = models.BooleanField(
+        default=False, help_text="Whether the timer is currently paused"
+    )
+    paused_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="When the timer was paused (if currently paused)",
+    )
+    total_paused_seconds = models.IntegerField(
+        default=0,
+        help_text="Total accumulated seconds the timer has been paused",
+    )
 
     class Meta:
         verbose_name = "Active Timer Session"
@@ -322,7 +334,16 @@ class ActiveTimerSession(models.Model):
 
     @property
     def elapsed_seconds(self):
-        """Calculate elapsed time in seconds since start_time."""
+        """Calculate elapsed time in seconds since start_time, excluding paused periods."""
         from django.utils import timezone
 
-        return int((timezone.now() - self.start_time).total_seconds())
+        now = timezone.now()
+        total_elapsed = int((now - self.start_time).total_seconds())
+
+        # If currently paused, add the current pause duration
+        if self.is_paused and self.paused_at:
+            current_pause = int((now - self.paused_at).total_seconds())
+            return total_elapsed - self.total_paused_seconds - current_pause
+
+        # Otherwise, just subtract accumulated pause time
+        return total_elapsed - self.total_paused_seconds
