@@ -70,5 +70,5 @@ docker-composeyml.txt
 dockerfilenew
 nginx.conf
 requirements.in
-
+temp/
 .dockerignore
