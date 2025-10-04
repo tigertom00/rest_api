@@ -359,6 +359,12 @@ if current_ip == DEV_IP:
     print("Running on DEVELOPMENT server, using PostgreSQL. DEBUG=True")
     DEBUG = True
     DATABASES["default"]["HOST"] = os.getenv("LOCAL_PROD_IP")
+    # Override Redis/Celery to use production server
+    CELERY_BROKER_URL = f"redis://{os.getenv('LOCAL_PROD_IP')}:6379/0"
+    CELERY_RESULT_BACKEND = f"redis://{os.getenv('LOCAL_PROD_IP')}:6379/0"
+    CHANNEL_LAYERS["default"]["CONFIG"]["hosts"] = [
+        f"redis://{os.getenv('LOCAL_PROD_IP')}:6379/0"
+    ]
 
 else:
     print("Running on production server, using PostgreSQL. DEBUG=False")
