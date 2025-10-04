@@ -14,13 +14,20 @@ load_dotenv(BASE_DIR / ".env")
 
 # * Security settings
 SECRET_KEY = os.getenv("SECRET_KEY")
-TRANSLATION_AUTH_KEY = os.getenv("TRANSLATION_AUTH_KEY")
+API_BASE_URL = os.getenv("API_BASE_URL")
 
-# * n8n integration settings
-N8N_TRANSLATE_WEBHOOK_URL = os.getenv(
-    "N8N_TRANSLATE_WEBHOOK_URL", "https://n8n.nxfs.no/webhook/translate-task"
-)
-API_BASE_URL = os.getenv("API_BASE_URL", "https://api.nxfs.no")
+# * Internationalization
+# https://docs.djangoproject.com/en/5.2/topics/i18n/
+
+LANGUAGE_CODE = "nb-no"
+TIME_ZONE = "Europe/Oslo"
+USE_I18N = True
+USE_TZ = True
+
+# * Default primary key field type
+# https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
+
+DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # * Applications
 INSTALLED_APPS = [
@@ -41,11 +48,11 @@ INSTALLED_APPS = [
     "drf_spectacular",  # DRF Spectacular for OpenAPI schema generation
     "channels",  # Channels for WebSockets and async support (push notifications, etc.)
     # * Local apps
-    "restAPI",  # Your custom app for the API with User models and middleware
+    "restAPI",  # custom app for the API with User models and middleware
     "app.tasks",
     "app.todo",
     "app.blog",
-    "app.memo",
+    "app.memo",  #
     "app.components",
     "app.docker_monitor",  # Docker container monitoring
     "app.chat",  # Chat system
@@ -150,28 +157,30 @@ CLERK_SECRET_KEY = os.getenv("CLERK_SECRET_KEY")
 CLERK_WEBHOOK_KEY = os.getenv("CLERK_WEBHOOK_KEY")
 CLERK_JWT_PUBLIC_KEY_URL = f"{CLERK_URL}/.well-known/jwks.json"
 
-# * Host settings
-ALLOWED_HOSTS = (
-    "api.nxfs.no",
-    "10.20.30.203",
-    "10.20.30.202",
-    "127.0.0.1",
-    "localhost",
-)
+# * OAuth2 Provider settings
+OAUTH2_PROVIDER = {
+    "SCOPES": {
+        "read": "Read scope",
+        "write": "Write scope",
+    },
+    "ACCESS_TOKEN_EXPIRE_SECONDS": 3600,
+    "REFRESH_TOKEN_EXPIRE_SECONDS": 3600 * 24 * 7,  # 7 days
+    "AUTHORIZATION_CODE_EXPIRE_SECONDS": 600,
+    "ROTATE_REFRESH_TOKEN": True,
+}
+LOGIN_URL = "/admin/login/"
 
-# * CORS settings to allow your frontend to communicate with the backend
-CORS_ALLOW_ALL_ORIGINS = False
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:8080",  # Expo default port
-    "http://127.0.0.1:8080",  # Django backend
-    "http://10.20.30.203:8080",
-    "https://api.nxfs.no:443",
-    "https://www.nxfs.no",
-    "https://nxfs.no",
-    "https://n8n.nxfs.no",
-    "https://cloud.nxfs.no",
-    "http://10.20.30.202:3000",  # React frontend dev
+# * MCP Server settings
+DJANGO_MCP_AUTHENTICATION_CLASSES = [
+    "oauth2_provider.contrib.rest_framework.OAuth2Authentication",  # OAuth2 for MCP
+    "rest_framework.authentication.TokenAuthentication",  # Token auth for MCP
+    "rest_framework_simplejwt.authentication.JWTAuthentication",  # JWT for MCP
 ]
+
+# * Host Network settings
+ALLOWED_HOSTS = os.getenv("DJANGO_ALLOWED_HOSTS", "localhost").split(",")
+CORS_ALLOW_ALL_ORIGINS = False
+CORS_ALLOWED_ORIGINS = os.getenv("CORS_ALLOWED_ORIGINS", "").split(",")
 CORS_ALLOW_HEADERS = [
     "accept",
     "accept-encoding",
@@ -183,14 +192,87 @@ CORS_ALLOW_HEADERS = [
     "x-csrftoken",
     "x-requested-with",
 ]
-CSRF_TRUSTED_ORIGINS = [
-    "http://10.20.30.203:8080",
-    "https://api.nxfs.no:443",
-]
-
+CSRF_TRUSTED_ORIGINS = os.getenv("CSRF_TRUSTED_ORIGINS", "").split(",")
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 USE_TLS = True
 
+# * Celery Configuration
+# Use environment variable or default to Docker hostname
+CELERY_BROKER_URL = os.getenv("REDIS_HOST", "redis://redis:6379/0")
+CELERY_RESULT_BACKEND = os.getenv("REDIS_HOST", "redis://redis:6379/0")
+CELERY_ACCEPT_CONTENT = ["json"]
+CELERY_TASK_SERIALIZER = "json"
+CELERY_RESULT_SERIALIZER = "json"
+CELERY_TIMEZONE = TIME_ZONE
+CELERY_ENABLE_UTC = True
+
+# * Celery Beat Schedule
+CELERY_BEAT_SCHEDULE = {
+    "sync-docker-containers": {
+        "task": "app.docker_monitor.tasks.sync_containers",
+        "schedule": 120.0,  # Every 2 minutes
+    },
+    "collect-container-stats": {
+        "task": "app.docker_monitor.tasks.collect_stats",
+        "schedule": 300.0,  # Every 5 minutes
+    },
+}
+
+# * Channels settings for WebSockets (push notifications, etc.)
+ASGI_APPLICATION = "srv.asgi.application"
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels_redis.core.RedisChannelLayer",
+        "CONFIG": {
+            "hosts": [("redis", 6379)],
+        },
+    },
+}
+# * Gotify settings for push notifications
+GOTIFY_URL = os.getenv("GOTIFY_URL")  # Your Gotify URL
+GOTIFY_TOKEN = os.getenv("GOTIFY_TOKEN")  # Your Gotify application token
+GOTIFY_ACCESS_TOKEN = os.getenv("GOTIFY_ACCESS_TOKEN")  # Access token for Gotify
+
+# * n8n integration settings
+N8N_TRANSLATE_WEBHOOK_URL = os.getenv(
+    "N8N_TRANSLATE_NO_WEBHOOK_URL", "https://n8n.nxfs.no/webhook/translate-task"
+)
+TRANSLATION_AUTH_KEY = os.getenv("TRANSLATION_AUTH_KEY")
+
+
+# * Static files (CSS, JavaScript, Images)
+# https://docs.djangoproject.com/en/5.2/howto/static-files/
+STATIC_URL = "static/"
+STATIC_ROOT = os.path.join(BASE_DIR, "static/")
+MEDIA_ROOT = os.path.join(BASE_DIR, "media/")
+MEDIA_URL = "/media/"
+
+STATICFILES_DIRS = []
+
+# * File upload settings
+DATA_UPLOAD_MAX_MEMORY_SIZE = 50 * 1024 * 1024  # 50MB
+FILE_UPLOAD_MAX_MEMORY_SIZE = 50 * 1024 * 1024  # 50MB
+
+# * Database configuration
+DATABASES = {
+    "default": {
+        "ENGINE": "django.db.backends.postgresql",
+        "NAME": os.getenv("POSTGRES_DB_NAME"),
+        "USER": os.getenv("POSTGRES_DB_USER"),
+        "PASSWORD": os.getenv("POSTGRES_DB_PASSWORD"),
+        "HOST": os.getenv("POSTGRES_DB_HOST"),
+        "PORT": os.getenv("POSTGRES_DB_PORT"),
+    }
+}
+
+# * Email settings
+
+EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+EMAIL_HOST = "smtp.gmail.com"  # Or your SMTP server
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+EMAIL_HOST_USER = os.getenv("EMAIL_USERNAME")
+EMAIL_HOST_PASSWORD = os.getenv("EMAIL_PASSWORD")
 
 # * Spec settings for drf_spectacular
 SPECTACULAR_SETTINGS = {
@@ -231,129 +313,6 @@ SPECTACULAR_SETTINGS = {
     "DISABLE_ERRORS_AND_WARNINGS": True,
 }
 
-# File upload settings
-DATA_UPLOAD_MAX_MEMORY_SIZE = 50 * 1024 * 1024  # 50MB
-FILE_UPLOAD_MAX_MEMORY_SIZE = 50 * 1024 * 1024  # 50MB
-
-DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.postgresql",
-        "NAME": os.getenv("POSTGRES_DB_NAME"),
-        "USER": os.getenv("POSTGRES_DB_USER"),
-        "PASSWORD": os.getenv("POSTGRES_DB_PASSWORD"),
-        "HOST": os.getenv("POSTGRES_DB_HOST"),
-        "PORT": os.getenv("POSTGRES_DB_PORT"),
-    }
-}
-
-# Development machine settings Database setup
-DEV_IP = "10.20.30.202"
-current_ip = socket.gethostbyname(socket.gethostname())
-
-if current_ip == DEV_IP:
-    # print("Running on development machine, using MySQL Production Database.")
-    DEBUG = True
-    # DATABASES = {
-    #   'default': {
-    #      'ENGINE': 'django.db.backends.sqlite3',
-    #     'NAME': BASE_DIR / 'db.sqlite3',
-    # }
-    # }
-else:
-    print("Running on production server, using MySQL DB. DEBUG=False")
-    DEBUG = False
-
-
-# * Channels settings for WebSockets (push notifications, etc.)
-ASGI_APPLICATION = "srv.asgi.application"
-CHANNEL_LAYERS = {
-    "default": {
-        "BACKEND": "channels_redis.core.RedisChannelLayer",
-        "CONFIG": {
-            "hosts": [("10.20.30.203", 6379)],
-        },
-    },
-}
-# * Gotify settings for push notifications
-GOTIFY_URL = os.getenv("GOTIFY_URL")  # Your Gotify URL
-GOTIFY_TOKEN = os.getenv("GOTIFY_TOKEN")  # Your Gotify application token
-GOTIFY_ACCESS_TOKEN = os.getenv("GOTIFY_ACCESS_TOKEN")  # Access token for Gotify
-
-
-# * Static files (CSS, JavaScript, Images)
-# https://docs.djangoproject.com/en/5.2/howto/static-files/
-STATIC_URL = "static/"
-STATIC_ROOT = os.path.join(BASE_DIR, "static/")
-MEDIA_ROOT = os.path.join(BASE_DIR, "media/")
-MEDIA_URL = "/media/"
-
-STATICFILES_DIRS = []
-
-# * Email settings
-
-EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
-EMAIL_HOST = "smtp.gmail.com"  # Or your SMTP server
-EMAIL_PORT = 587
-EMAIL_USE_TLS = True
-EMAIL_HOST_USER = os.getenv("EMAIL_USERNAME")
-EMAIL_HOST_PASSWORD = os.getenv("EMAIL_PASSWORD")
-
-
-# * Internationalization
-# https://docs.djangoproject.com/en/5.2/topics/i18n/
-
-LANGUAGE_CODE = "nb-no"
-
-TIME_ZONE = "Europe/Oslo"
-
-USE_I18N = True
-
-USE_TZ = True
-
-
-# * OAuth2 Provider settings
-OAUTH2_PROVIDER = {
-    "SCOPES": {
-        "read": "Read scope",
-        "write": "Write scope",
-    },
-    "ACCESS_TOKEN_EXPIRE_SECONDS": 3600,
-    "REFRESH_TOKEN_EXPIRE_SECONDS": 3600 * 24 * 7,  # 7 days
-    "AUTHORIZATION_CODE_EXPIRE_SECONDS": 600,
-    "ROTATE_REFRESH_TOKEN": True,
-}
-
-# Login URL for OAuth2
-LOGIN_URL = "/admin/login/"
-
-# * MCP Server settings
-DJANGO_MCP_AUTHENTICATION_CLASSES = [
-    "oauth2_provider.contrib.rest_framework.OAuth2Authentication",  # OAuth2 for MCP
-    "rest_framework.authentication.TokenAuthentication",  # Token auth for MCP
-]
-
-# * Celery Configuration
-# Use environment variable or default to Docker hostname
-CELERY_BROKER_URL = os.getenv("REDIS_HOST", "redis://redis:6379/0")
-CELERY_RESULT_BACKEND = os.getenv("REDIS_HOST", "redis://redis:6379/0")
-CELERY_ACCEPT_CONTENT = ["json"]
-CELERY_TASK_SERIALIZER = "json"
-CELERY_RESULT_SERIALIZER = "json"
-CELERY_TIMEZONE = TIME_ZONE
-CELERY_ENABLE_UTC = True
-
-# Celery Beat Schedule
-CELERY_BEAT_SCHEDULE = {
-    "sync-docker-containers": {
-        "task": "app.docker_monitor.tasks.sync_containers",
-        "schedule": 120.0,  # Every 2 minutes
-    },
-    "collect-container-stats": {
-        "task": "app.docker_monitor.tasks.collect_stats",
-        "schedule": 300.0,  # Every 5 minutes
-    },
-}
-
 # * Logging Configuration
 LOGGING = {
     "version": 1,
@@ -391,10 +350,19 @@ LOGGING = {
     },
 }
 
-# * Default primary key field type
-# https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
-DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+# * Development machine settings Database setup
+DEV_IP = "10.20.30.202"
+current_ip = socket.gethostbyname(socket.gethostname())
+
+if current_ip == DEV_IP:
+    print("Running on DEVELOPMENT server, using PostgreSQL. DEBUG=True")
+    DEBUG = True
+    DATABASES["default"]["HOST"] = os.getenv("LOCAL_PROD_IP")
+
+else:
+    print("Running on production server, using PostgreSQL. DEBUG=False")
+    DEBUG = False
 
 # * Debug mode settings
 if DEBUG:
