@@ -352,22 +352,27 @@ LOGGING = {
 
 
 # * Development machine settings Database setup
+# Check if running in Docker by looking for .dockerenv file
+IS_DOCKER = os.path.exists("/.dockerenv")
 DEV_IP = "10.20.30.202"
 current_ip = socket.gethostbyname(socket.gethostname())
 
-if current_ip == DEV_IP:
-    print("Running on DEVELOPMENT server, using PostgreSQL. DEBUG=True")
+if not IS_DOCKER and current_ip == DEV_IP:
+    print(
+        "Running on DEVELOPMENT machine (not Docker), using remote PostgreSQL and Redis. DEBUG=True"
+    )
     DEBUG = True
     DATABASES["default"]["HOST"] = os.getenv("LOCAL_PROD_IP")
-    # Override Redis/Celery to use production server
+    # Override Redis/Celery to use production server from dev machine
     CELERY_BROKER_URL = f"redis://{os.getenv('LOCAL_PROD_IP')}:6379/0"
     CELERY_RESULT_BACKEND = f"redis://{os.getenv('LOCAL_PROD_IP')}:6379/0"
     CHANNEL_LAYERS["default"]["CONFIG"]["hosts"] = [
         f"redis://{os.getenv('LOCAL_PROD_IP')}:6379/0"
     ]
-
 else:
-    print("Running on production server, using PostgreSQL. DEBUG=False")
+    print(
+        "Running in PRODUCTION (Docker), using PostgreSQL and Redis via Docker network. DEBUG=False"
+    )
     DEBUG = False
 
 # * Debug mode settings
