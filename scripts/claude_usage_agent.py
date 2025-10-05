@@ -21,7 +21,7 @@ import sys
 import requests
 from pathlib import Path
 from typing import Dict, List, Any
-from datetime import datetime
+from datetime import datetime, timezone
 
 
 class ClaudeDataExtractor:
@@ -65,8 +65,19 @@ class ClaudeDataExtractor:
             print(f"Error reading {file_path}: {e}", file=sys.stderr)
         return messages
 
-    def extract_usage_data(self) -> List[Dict[str, Any]]:
-        """Extract all usage data for sending to webhook"""
+    def extract_usage_data(self, hours_back: int = 6) -> List[Dict[str, Any]]:
+        """
+        Extract usage data for sending to webhook.
+        Only includes messages from the last N hours to reduce payload size.
+
+        Args:
+            hours_back: How many hours of data to include (default: 6)
+        """
+        from datetime import datetime, timedelta, timezone
+
+        # Calculate cutoff time
+        cutoff = datetime.now(timezone.utc) - timedelta(hours=hours_back)
+
         all_projects = []
 
         for project in self.get_all_projects():
@@ -77,17 +88,33 @@ class ClaudeDataExtractor:
             }
 
             for session_file in self.get_project_sessions(project):
-                messages = self.parse_session_file(session_file)
+                all_messages = self.parse_session_file(session_file)
 
-                if not messages:
+                if not all_messages:
+                    continue
+
+                # Filter messages to only recent ones
+                recent_messages = []
+                for msg in all_messages:
+                    try:
+                        msg_time = datetime.fromisoformat(
+                            msg["timestamp"].replace("Z", "+00:00")
+                        )
+                        if msg_time >= cutoff:
+                            recent_messages.append(msg)
+                    except (ValueError, KeyError):
+                        # Include message if we can't parse timestamp
+                        recent_messages.append(msg)
+
+                if not recent_messages:
                     continue
 
                 # Extract session ID from first message
-                session_id = messages[0].get("sessionId", "unknown")
+                session_id = recent_messages[0].get("sessionId", "unknown")
 
                 session_data = {
                     "session_id": session_id,
-                    "messages": messages,
+                    "messages": recent_messages,
                 }
 
                 project_data["sessions"].append(session_data)
