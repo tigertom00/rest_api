@@ -217,6 +217,11 @@ CELERY_BEAT_SCHEDULE = {
         "task": "app.docker_monitor.tasks.collect_stats",
         "schedule": 300.0,  # Every 5 minutes
     },
+    "cleanup-old-claude-usage": {
+        "task": "app.claude_usage.tasks.cleanup_old_snapshots",
+        "schedule": 3600.0,  # Every hour
+        "kwargs": {"hours": 6},  # Delete data older than 6 hours
+    },
 }
 
 # * Channels settings for WebSockets (push notifications, etc.)
