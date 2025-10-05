@@ -56,6 +56,7 @@ INSTALLED_APPS = [
     "app.components",
     "app.docker_monitor",  # Docker container monitoring
     "app.chat",  # Chat system
+    "app.claude_usage",  # Claude usage monitoring
     "mcp_server",  # MCP server for AI integration
 ]
 
