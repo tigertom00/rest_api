@@ -734,7 +734,9 @@ def dashboard_summary(request):
         )
 
         # Calculate burn rate from current window only
-        window_start_dt = datetime.fromisoformat(window_start.replace("Z", "+00:00"))
+        from dateutil import parser
+
+        window_start_dt = parser.isoparse(window_start)
         window_duration_minutes = (
             timezone.now() - window_start_dt
         ).total_seconds() / 60
