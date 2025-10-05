@@ -205,7 +205,8 @@ class ClaudeDataExtractor:
     ) -> List[Dict[str, Any]]:
         """
         Group messages into rate limit windows (default 5 hours).
-        Each window starts from the first message timestamp.
+        Window starts from the hour of the first message (rounded down),
+        and ends at the full hour 5 hours later.
         """
         if not messages:
             return []
@@ -228,9 +229,13 @@ class ClaudeDataExtractor:
                 if current_window:
                     windows.append(current_window)
 
+                # Round start time down to the hour
+                window_start = msg_time.replace(minute=0, second=0, microsecond=0)
+                window_end = window_start + window_duration
+
                 current_window = {
-                    "start_time": msg_time,
-                    "end_time": msg_time + window_duration,
+                    "start_time": window_start,
+                    "end_time": window_end,
                     "messages": [],
                     "total_tokens": 0,
                     "input_tokens": 0,
