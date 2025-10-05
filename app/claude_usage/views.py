@@ -19,13 +19,131 @@ from .services import ClaudeDataExtractor
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def usage_stats(request):
-    """Get overall usage statistics with rate limit information"""
-    extractor = ClaudeDataExtractor()
-    stats = extractor.get_usage_stats()
+    """Get overall usage statistics with rate limit information from database"""
+    # Calculate stats from database
+    from django.db.models import Sum
 
-    # Add rate limit information
-    rate_limit_status = extractor.get_current_rate_limit_status()
-    stats.update(rate_limit_status)
+    projects = Project.objects.all()
+    sessions = Session.objects.all()
+    snapshots = UsageSnapshot.objects.all()
+
+    stats = {
+        "total_tokens": snapshots.aggregate(total=Sum("total_tokens"))["total"] or 0,
+        "total_input_tokens": snapshots.aggregate(total=Sum("input_tokens"))["total"]
+        or 0,
+        "total_output_tokens": snapshots.aggregate(total=Sum("output_tokens"))["total"]
+        or 0,
+        "total_cache_creation_tokens": snapshots.aggregate(
+            total=Sum("cache_creation_tokens")
+        )["total"]
+        or 0,
+        "total_cache_read_tokens": snapshots.aggregate(total=Sum("cache_read_tokens"))[
+            "total"
+        ]
+        or 0,
+        "total_sessions": sessions.count(),
+        "total_messages": snapshots.count(),
+        "projects": projects.count(),
+        "projects_data": [],
+    }
+
+    # Calculate rate limit status from database snapshots
+    all_snapshots = list(
+        snapshots.order_by("timestamp").values(
+            "timestamp",
+            "input_tokens",
+            "output_tokens",
+            "cache_creation_tokens",
+            "cache_read_tokens",
+        )
+    )
+
+    if all_snapshots:
+        # Convert to message format for rate limit calculation
+        messages = []
+        for snap in all_snapshots:
+            messages.append(
+                {
+                    "timestamp": snap["timestamp"].isoformat().replace("+00:00", "Z"),
+                    "message": {
+                        "usage": {
+                            "input_tokens": snap["input_tokens"],
+                            "output_tokens": snap["output_tokens"],
+                            "cache_creation_input_tokens": snap[
+                                "cache_creation_tokens"
+                            ],
+                            "cache_read_input_tokens": snap["cache_read_tokens"],
+                        }
+                    },
+                }
+            )
+
+        # Use extractor for rate limit calculation only
+        extractor = ClaudeDataExtractor()
+        windows = extractor.calculate_rate_limit_windows(messages, window_hours=5)
+
+        if windows:
+            latest_window = windows[-1]
+            now = timezone.now()
+            is_within_active_window = now < latest_window["end_time"]
+
+            if is_within_active_window:
+                time_until_reset = latest_window["end_time"] - now
+                time_until_reset_seconds = int(time_until_reset.total_seconds())
+                hours = time_until_reset_seconds // 3600
+                minutes = (time_until_reset_seconds % 3600) // 60
+
+                stats.update(
+                    {
+                        "current_window_tokens": latest_window["total_tokens"],
+                        "current_window_start": latest_window["start_time"].isoformat(),
+                        "next_reset_at": latest_window["end_time"].isoformat(),
+                        "time_until_reset_seconds": time_until_reset_seconds,
+                        "time_until_reset_human": f"{hours}h {minutes}m remaining",
+                        "is_within_active_window": True,
+                        "window_details": {
+                            "input_tokens": latest_window["input_tokens"],
+                            "output_tokens": latest_window["output_tokens"],
+                            "cache_creation_tokens": latest_window[
+                                "cache_creation_tokens"
+                            ],
+                            "cache_read_tokens": latest_window["cache_read_tokens"],
+                        },
+                    }
+                )
+            else:
+                stats.update(
+                    {
+                        "current_window_tokens": 0,
+                        "current_window_start": None,
+                        "next_reset_at": None,
+                        "time_until_reset_seconds": None,
+                        "time_until_reset_human": "Limits have reset",
+                        "is_within_active_window": False,
+                    }
+                )
+        else:
+            stats.update(
+                {
+                    "current_window_tokens": 0,
+                    "current_window_start": None,
+                    "next_reset_at": None,
+                    "time_until_reset_seconds": None,
+                    "time_until_reset_human": None,
+                    "is_within_active_window": False,
+                }
+            )
+    else:
+        stats.update(
+            {
+                "current_window_tokens": 0,
+                "current_window_start": None,
+                "next_reset_at": None,
+                "time_until_reset_seconds": None,
+                "time_until_reset_human": None,
+                "is_within_active_window": False,
+            }
+        )
 
     serializer = UsageStatsSerializer(stats)
     return Response(serializer.data)

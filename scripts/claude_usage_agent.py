@@ -127,7 +127,7 @@ class ClaudeUsageAgent:
 
         # Send to webhook
         headers = {
-            "Authorization": f"Bearer {self.api_token}",
+            "Authorization": self.api_token,  # Token is already formatted (e.g., "Token xyz" or "Bearer xyz")
             "Content-Type": "application/json",
         }
 
@@ -136,7 +136,7 @@ class ClaudeUsageAgent:
                 f"{self.api_url}/app/claude-usage/agent-sync/",
                 json=payload,
                 headers=headers,
-                timeout=30,
+                timeout=120,  # Increased timeout for large payloads
             )
 
             response.raise_for_status()
