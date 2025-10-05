@@ -470,3 +470,250 @@ def agent_sync_claude_usage(request):
             {"status": "error", "message": str(e)},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def usage_timeseries(request):
+    """
+    Get time-series data for graphing token usage over time.
+    Returns data points grouped by time intervals.
+    """
+    from django.db.models import Sum, Count
+    from django.db.models.functions import TruncMinute, TruncHour
+    from datetime import timedelta
+
+    # Get query parameters
+    hours = int(request.query_params.get("hours", 6))
+    interval = request.query_params.get("interval", "5min")  # 5min, 15min, 1hour
+
+    # Calculate time range
+    end_time = timezone.now()
+    start_time = end_time - timedelta(hours=hours)
+
+    # Get snapshots in range
+    snapshots = UsageSnapshot.objects.filter(
+        timestamp__gte=start_time, timestamp__lte=end_time
+    ).order_by("timestamp")
+
+    # Group by interval
+    if interval == "5min":
+        # Group by 5-minute intervals
+        data_points = []
+        current = start_time
+        while current <= end_time:
+            next_point = current + timedelta(minutes=5)
+            interval_snapshots = snapshots.filter(
+                timestamp__gte=current, timestamp__lt=next_point
+            )
+
+            agg = interval_snapshots.aggregate(
+                total_tokens=Sum("total_tokens"),
+                input_tokens=Sum("input_tokens"),
+                output_tokens=Sum("output_tokens"),
+                cache_creation_tokens=Sum("cache_creation_tokens"),
+                cache_read_tokens=Sum("cache_read_tokens"),
+                message_count=Count("id"),
+            )
+
+            data_points.append(
+                {
+                    "timestamp": current.isoformat(),
+                    "total_tokens": agg["total_tokens"] or 0,
+                    "input_tokens": agg["input_tokens"] or 0,
+                    "output_tokens": agg["output_tokens"] or 0,
+                    "cache_creation_tokens": agg["cache_creation_tokens"] or 0,
+                    "cache_read_tokens": agg["cache_read_tokens"] or 0,
+                    "message_count": agg["message_count"] or 0,
+                }
+            )
+            current = next_point
+
+    elif interval == "1hour":
+        data_points = (
+            snapshots.annotate(hour=TruncHour("timestamp"))
+            .values("hour")
+            .annotate(
+                total_tokens=Sum("total_tokens"),
+                input_tokens=Sum("input_tokens"),
+                output_tokens=Sum("output_tokens"),
+                cache_creation_tokens=Sum("cache_creation_tokens"),
+                cache_read_tokens=Sum("cache_read_tokens"),
+                message_count=Count("id"),
+            )
+            .order_by("hour")
+        )
+        data_points = [
+            {
+                "timestamp": point["hour"].isoformat(),
+                "total_tokens": point["total_tokens"],
+                "input_tokens": point["input_tokens"],
+                "output_tokens": point["output_tokens"],
+                "cache_creation_tokens": point["cache_creation_tokens"],
+                "cache_read_tokens": point["cache_read_tokens"],
+                "message_count": point["message_count"],
+            }
+            for point in data_points
+        ]
+
+    return Response(
+        {
+            "start_time": start_time.isoformat(),
+            "end_time": end_time.isoformat(),
+            "interval": interval,
+            "data_points": data_points,
+        }
+    )
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def dashboard_summary(request):
+    """
+    Get dashboard summary with costs, burn rate, model distribution, and predictions.
+    Perfect for frontend dashboards like claude-monitor.
+    """
+    from django.db.models import Sum, Count, Avg
+    from datetime import timedelta
+
+    # Get recent data (last 6 hours)
+    hours = int(request.query_params.get("hours", 6))
+    end_time = timezone.now()
+    start_time = end_time - timedelta(hours=hours)
+
+    snapshots = UsageSnapshot.objects.filter(
+        timestamp__gte=start_time, timestamp__lte=end_time
+    )
+
+    # Total usage stats
+    total_stats = snapshots.aggregate(
+        total_tokens=Sum("total_tokens"),
+        total_cost=Sum("cost_usd"),
+        message_count=Count("id"),
+    )
+
+    # Model distribution
+    model_dist = (
+        snapshots.values("model")
+        .annotate(
+            token_count=Sum("total_tokens"),
+            message_count=Count("id"),
+            cost=Sum("cost_usd"),
+        )
+        .order_by("-token_count")
+    )
+
+    # Calculate burn rate (tokens per minute)
+    time_diff_minutes = (end_time - start_time).total_seconds() / 60
+    burn_rate = (
+        (total_stats["total_tokens"] or 0) / time_diff_minutes
+        if time_diff_minutes > 0
+        else 0
+    )
+    cost_rate = (
+        (total_stats["total_cost"] or 0) / time_diff_minutes
+        if time_diff_minutes > 0
+        else 0
+    )
+
+    # Get current rate limit window info
+    extractor = ClaudeDataExtractor()
+    all_snapshots_data = list(
+        UsageSnapshot.objects.order_by("timestamp").values(
+            "timestamp",
+            "input_tokens",
+            "output_tokens",
+            "cache_creation_tokens",
+            "cache_read_tokens",
+        )
+    )
+
+    rate_limit_info = {"is_within_active_window": False}
+    if all_snapshots_data:
+        messages = []
+        for snap in all_snapshots_data:
+            messages.append(
+                {
+                    "timestamp": snap["timestamp"].isoformat().replace("+00:00", "Z"),
+                    "message": {
+                        "usage": {
+                            "input_tokens": snap["input_tokens"],
+                            "output_tokens": snap["output_tokens"],
+                            "cache_creation_input_tokens": snap[
+                                "cache_creation_tokens"
+                            ],
+                            "cache_read_input_tokens": snap["cache_read_tokens"],
+                        }
+                    },
+                }
+            )
+
+        windows = extractor.calculate_rate_limit_windows(messages, window_hours=5)
+        if windows:
+            latest_window = windows[-1]
+            now = timezone.now()
+            is_within_active_window = now < latest_window["end_time"]
+
+            if is_within_active_window:
+                time_until_reset = latest_window["end_time"] - now
+                time_until_reset_seconds = int(time_until_reset.total_seconds())
+                hours_left = time_until_reset_seconds // 3600
+                minutes_left = (time_until_reset_seconds % 3600) // 60
+
+                # Calculate predictions
+                if burn_rate > 0:
+                    # Estimate when tokens will run out (assuming 65,459 token limit for Pro)
+                    token_limit = 65459  # Can be parameterized
+                    current_usage = latest_window["total_tokens"]
+                    tokens_remaining = token_limit - current_usage
+                    minutes_until_limit = (
+                        tokens_remaining / burn_rate if burn_rate > 0 else float("inf")
+                    )
+
+                    rate_limit_info = {
+                        "current_window_tokens": latest_window["total_tokens"],
+                        "current_window_start": latest_window["start_time"].isoformat(),
+                        "next_reset_at": latest_window["end_time"].isoformat(),
+                        "time_until_reset_seconds": time_until_reset_seconds,
+                        "time_until_reset_human": f"{hours_left}h {minutes_left}m",
+                        "is_within_active_window": True,
+                        "predictions": {
+                            "tokens_will_run_out": minutes_until_limit
+                            < time_until_reset_seconds / 60,
+                            "estimated_time_to_limit": (
+                                f"{int(minutes_until_limit // 60)}h {int(minutes_until_limit % 60)}m"
+                                if minutes_until_limit < float("inf")
+                                else "Not reaching limit"
+                            ),
+                        },
+                    }
+
+    return Response(
+        {
+            "summary": {
+                "total_tokens": total_stats["total_tokens"] or 0,
+                "total_cost_usd": float(total_stats["total_cost"] or 0),
+                "total_messages": total_stats["message_count"] or 0,
+                "time_range_hours": hours,
+            },
+            "burn_rate": {
+                "tokens_per_minute": round(burn_rate, 1),
+                "cost_per_minute_usd": round(cost_rate, 4),
+            },
+            "model_distribution": [
+                {
+                    "model": item["model"],
+                    "tokens": item["token_count"],
+                    "messages": item["message_count"],
+                    "cost_usd": float(item["cost"] or 0),
+                    "percentage": round(
+                        (item["token_count"] / (total_stats["total_tokens"] or 1))
+                        * 100,
+                        1,
+                    ),
+                }
+                for item in model_dist
+            ],
+            "rate_limit": rate_limit_info,
+        }
+    )
