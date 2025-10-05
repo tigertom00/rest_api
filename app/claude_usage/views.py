@@ -611,7 +611,7 @@ def dashboard_summary(request):
         else 0
     )
     cost_rate = (
-        (total_stats["total_cost"] or 0) / time_diff_minutes
+        float(total_stats["total_cost"] or 0) / time_diff_minutes
         if time_diff_minutes > 0
         else 0
     )
