@@ -497,9 +497,10 @@ def usage_timeseries(request):
     ).order_by("timestamp")
 
     # Group by interval
+    data_points = []  # Initialize to prevent UnboundLocalError
+
     if interval == "5min":
         # Group by 5-minute intervals
-        data_points = []
         current = start_time
         while current <= end_time:
             next_point = current + timedelta(minutes=5)
@@ -530,7 +531,7 @@ def usage_timeseries(request):
             current = next_point
 
     elif interval == "1hour":
-        data_points = (
+        hourly_data = (
             snapshots.annotate(hour=TruncHour("timestamp"))
             .values("hour")
             .annotate(
@@ -553,8 +554,40 @@ def usage_timeseries(request):
                 "cache_read_tokens": point["cache_read_tokens"],
                 "message_count": point["message_count"],
             }
-            for point in data_points
+            for point in hourly_data
         ]
+
+    else:
+        # Default to 5min if invalid interval provided
+        interval = "5min"
+        current = start_time
+        while current <= end_time:
+            next_point = current + timedelta(minutes=5)
+            interval_snapshots = snapshots.filter(
+                timestamp__gte=current, timestamp__lt=next_point
+            )
+
+            agg = interval_snapshots.aggregate(
+                total_tokens=Sum("total_tokens"),
+                input_tokens=Sum("input_tokens"),
+                output_tokens=Sum("output_tokens"),
+                cache_creation_tokens=Sum("cache_creation_tokens"),
+                cache_read_tokens=Sum("cache_read_tokens"),
+                message_count=Count("id"),
+            )
+
+            data_points.append(
+                {
+                    "timestamp": current.isoformat(),
+                    "total_tokens": agg["total_tokens"] or 0,
+                    "input_tokens": agg["input_tokens"] or 0,
+                    "output_tokens": agg["output_tokens"] or 0,
+                    "cache_creation_tokens": agg["cache_creation_tokens"] or 0,
+                    "cache_read_tokens": agg["cache_read_tokens"] or 0,
+                    "message_count": agg["message_count"] or 0,
+                }
+            )
+            current = next_point
 
     return Response(
         {
