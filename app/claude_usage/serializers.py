@@ -98,3 +98,12 @@ class UsageStatsSerializer(serializers.Serializer):
     total_messages = serializers.IntegerField()
     projects = serializers.IntegerField()
     projects_data = serializers.ListField(child=serializers.DictField())
+
+    # Rate limit fields
+    current_window_tokens = serializers.IntegerField(required=False)
+    current_window_start = serializers.CharField(required=False, allow_null=True)
+    next_reset_at = serializers.CharField(required=False, allow_null=True)
+    time_until_reset_seconds = serializers.IntegerField(required=False, allow_null=True)
+    time_until_reset_human = serializers.CharField(required=False, allow_null=True)
+    is_within_active_window = serializers.BooleanField(required=False)
+    window_details = serializers.DictField(required=False)

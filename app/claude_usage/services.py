@@ -1,9 +1,10 @@
 import os
 import json
 import glob
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Dict, List, Any, Optional
+from django.utils import timezone
 
 
 class ClaudeDataExtractor:
@@ -198,3 +199,142 @@ class ClaudeDataExtractor:
         ]
 
         return input_cost + output_cost + cache_creation_cost + cache_read_cost
+
+    def calculate_rate_limit_windows(
+        self, messages: List[Dict[str, Any]], window_hours: int = 5
+    ) -> List[Dict[str, Any]]:
+        """
+        Group messages into rate limit windows (default 5 hours).
+        Each window starts from the first message timestamp.
+        """
+        if not messages:
+            return []
+
+        # Sort messages by timestamp
+        sorted_messages = sorted(
+            messages,
+            key=lambda m: datetime.fromisoformat(m["timestamp"].replace("Z", "+00:00")),
+        )
+
+        windows = []
+        current_window = None
+        window_duration = timedelta(hours=window_hours)
+
+        for msg in sorted_messages:
+            msg_time = datetime.fromisoformat(msg["timestamp"].replace("Z", "+00:00"))
+
+            # Start new window if needed
+            if current_window is None or msg_time >= current_window["end_time"]:
+                if current_window:
+                    windows.append(current_window)
+
+                current_window = {
+                    "start_time": msg_time,
+                    "end_time": msg_time + window_duration,
+                    "messages": [],
+                    "total_tokens": 0,
+                    "input_tokens": 0,
+                    "output_tokens": 0,
+                    "cache_creation_tokens": 0,
+                    "cache_read_tokens": 0,
+                }
+
+            # Add message to current window
+            current_window["messages"].append(msg)
+            usage = msg["message"]["usage"]
+            current_window["input_tokens"] += usage.get("input_tokens", 0)
+            current_window["output_tokens"] += usage.get("output_tokens", 0)
+            current_window["cache_creation_tokens"] += usage.get(
+                "cache_creation_input_tokens", 0
+            )
+            current_window["cache_read_tokens"] += usage.get(
+                "cache_read_input_tokens", 0
+            )
+            current_window["total_tokens"] = (
+                current_window["input_tokens"]
+                + current_window["output_tokens"]
+                + current_window["cache_creation_tokens"]
+                + current_window["cache_read_tokens"]
+            )
+
+        # Add last window
+        if current_window:
+            windows.append(current_window)
+
+        return windows
+
+    def get_current_rate_limit_status(self, window_hours: int = 5) -> Dict[str, Any]:
+        """
+        Calculate current rate limit status including time until reset.
+        """
+        # Get all messages from all projects
+        all_messages = []
+        for project in self.get_all_projects():
+            project_data = self.get_project_data(project)
+            if project_data:
+                for session in project_data["sessions"]:
+                    all_messages.extend(session["messages"])
+
+        if not all_messages:
+            return {
+                "current_window_tokens": 0,
+                "current_window_start": None,
+                "next_reset_at": None,
+                "time_until_reset_seconds": None,
+                "time_until_reset_human": None,
+                "is_within_active_window": False,
+            }
+
+        # Calculate windows
+        windows = self.calculate_rate_limit_windows(all_messages, window_hours)
+
+        if not windows:
+            return {
+                "current_window_tokens": 0,
+                "current_window_start": None,
+                "next_reset_at": None,
+                "time_until_reset_seconds": None,
+                "time_until_reset_human": None,
+                "is_within_active_window": False,
+            }
+
+        # Get the most recent window
+        latest_window = windows[-1]
+        now = timezone.now()
+
+        # Check if we're still within the latest window
+        is_within_active_window = now < latest_window["end_time"]
+
+        if is_within_active_window:
+            time_until_reset = latest_window["end_time"] - now
+            time_until_reset_seconds = int(time_until_reset.total_seconds())
+
+            # Format human-readable time
+            hours = time_until_reset_seconds // 3600
+            minutes = (time_until_reset_seconds % 3600) // 60
+            time_until_reset_human = f"{hours}h {minutes}m remaining"
+
+            return {
+                "current_window_tokens": latest_window["total_tokens"],
+                "current_window_start": latest_window["start_time"].isoformat(),
+                "next_reset_at": latest_window["end_time"].isoformat(),
+                "time_until_reset_seconds": time_until_reset_seconds,
+                "time_until_reset_human": time_until_reset_human,
+                "is_within_active_window": True,
+                "window_details": {
+                    "input_tokens": latest_window["input_tokens"],
+                    "output_tokens": latest_window["output_tokens"],
+                    "cache_creation_tokens": latest_window["cache_creation_tokens"],
+                    "cache_read_tokens": latest_window["cache_read_tokens"],
+                },
+            }
+        else:
+            # Window has expired, limits have reset
+            return {
+                "current_window_tokens": 0,
+                "current_window_start": None,
+                "next_reset_at": None,
+                "time_until_reset_seconds": None,
+                "time_until_reset_human": "Limits have reset",
+                "is_within_active_window": False,
+            }

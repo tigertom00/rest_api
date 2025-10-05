@@ -14,4 +14,5 @@ urlpatterns = [
     ),
     path("sessions/<str:session_id>/", views.session_detail, name="session-detail"),
     path("refresh/", views.refresh_data, name="refresh-data"),
+    path("agent-sync/", views.agent_sync_claude_usage, name="agent-sync"),
 ]
