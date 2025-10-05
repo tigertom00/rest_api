@@ -721,32 +721,102 @@ def dashboard_summary(request):
                         },
                     }
 
-    return Response(
-        {
-            "summary": {
-                "total_tokens": total_stats["total_tokens"] or 0,
-                "total_cost_usd": float(total_stats["total_cost"] or 0),
-                "total_messages": total_stats["message_count"] or 0,
-                "time_range_hours": hours,
-            },
-            "burn_rate": {
-                "tokens_per_minute": round(burn_rate, 1),
-                "cost_per_minute_usd": round(cost_rate, 4),
-            },
-            "model_distribution": [
-                {
-                    "model": item["model"],
-                    "tokens": item["token_count"],
-                    "messages": item["message_count"],
-                    "cost_usd": float(item["cost"] or 0),
-                    "percentage": round(
-                        (item["token_count"] / (total_stats["total_tokens"] or 1))
-                        * 100,
-                        1,
-                    ),
-                }
-                for item in model_dist
-            ],
-            "rate_limit": rate_limit_info,
-        }
-    )
+    # Use current window data if available, otherwise use 6h totals
+    if rate_limit_info.get("is_within_active_window"):
+        # Get current window snapshots for accurate summary
+        window_start = rate_limit_info["current_window_start"]
+        window_snapshots = UsageSnapshot.objects.filter(timestamp__gte=window_start)
+
+        window_stats = window_snapshots.aggregate(
+            total_tokens=Sum("total_tokens"),
+            total_cost=Sum("cost_usd"),
+            message_count=Count("id"),
+        )
+
+        # Calculate burn rate from current window only
+        window_start_dt = datetime.fromisoformat(window_start.replace("Z", "+00:00"))
+        window_duration_minutes = (
+            timezone.now() - window_start_dt
+        ).total_seconds() / 60
+        window_burn_rate = (
+            (window_stats["total_tokens"] or 0) / window_duration_minutes
+            if window_duration_minutes > 0
+            else 0
+        )
+        window_cost_rate = (
+            float(window_stats["total_cost"] or 0) / window_duration_minutes
+            if window_duration_minutes > 0
+            else 0
+        )
+
+        # Model distribution from current window
+        window_model_dist = (
+            window_snapshots.values("model")
+            .annotate(
+                token_count=Sum("total_tokens"),
+                message_count=Count("id"),
+                cost=Sum("cost_usd"),
+            )
+            .order_by("-token_count")
+        )
+
+        return Response(
+            {
+                "summary": {
+                    "total_tokens": window_stats["total_tokens"] or 0,
+                    "total_cost_usd": float(window_stats["total_cost"] or 0),
+                    "total_messages": window_stats["message_count"] or 0,
+                    "time_range": "current_5h_window",
+                },
+                "burn_rate": {
+                    "tokens_per_minute": round(window_burn_rate, 1),
+                    "cost_per_minute_usd": round(window_cost_rate, 4),
+                },
+                "model_distribution": [
+                    {
+                        "model": item["model"],
+                        "tokens": item["token_count"],
+                        "messages": item["message_count"],
+                        "cost_usd": float(item["cost"] or 0),
+                        "percentage": round(
+                            (item["token_count"] / (window_stats["total_tokens"] or 1))
+                            * 100,
+                            1,
+                        ),
+                    }
+                    for item in window_model_dist
+                ],
+                "rate_limit": rate_limit_info,
+            }
+        )
+    else:
+        # Fallback to 6h data when no active window
+        return Response(
+            {
+                "summary": {
+                    "total_tokens": total_stats["total_tokens"] or 0,
+                    "total_cost_usd": float(total_stats["total_cost"] or 0),
+                    "total_messages": total_stats["message_count"] or 0,
+                    "time_range_hours": hours,
+                },
+                "burn_rate": {
+                    "tokens_per_minute": round(burn_rate, 1),
+                    "cost_per_minute_usd": round(cost_rate, 4),
+                },
+                "model_distribution": [
+                    {
+                        "model": item["model"],
+                        "tokens": item["token_count"],
+                        "messages": item["message_count"],
+                        "cost_usd": float(item["cost"] or 0),
+                        "percentage": round(
+                            (item["token_count"] / (total_stats["total_tokens"] or 1))
+                            * 100,
+                            1,
+                        ),
+                    }
+                    for item in model_dist
+                ],
+                "rate_limit": rate_limit_info,
+            }
+        )
