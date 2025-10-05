@@ -32,7 +32,7 @@ class SessionAdmin(admin.ModelAdmin):
         "total_cost",
         "created_at",
     ]
-    list_filter = ["project", "created_at", "model"]
+    list_filter = ["project", "created_at"]
     search_fields = ["session_id", "project__name"]
     readonly_fields = ["created_at", "updated_at"]
 
