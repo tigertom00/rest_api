@@ -2023,12 +2023,25 @@ class ActiveTimerSessionViewSet(viewsets.ModelViewSet):
     def stop(self, request, pk=None):
         """
         Stop an active timer session and create a time entry.
+        Accepts optional elapsed_seconds parameter to use adjusted time from frontend.
         Returns: Created Timeliste entry
         """
         session = self.get_object()
 
-        # Calculate elapsed time in seconds
-        elapsed_seconds = session.elapsed_seconds
+        # Use provided elapsed_seconds if available, otherwise calculate from start_time
+        elapsed_seconds = request.data.get("elapsed_seconds")
+        if elapsed_seconds is not None:
+            # Use the adjusted time from frontend
+            try:
+                elapsed_seconds = int(elapsed_seconds)
+            except (ValueError, TypeError):
+                return Response(
+                    {"error": "elapsed_seconds must be a valid integer"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+        else:
+            # Calculate from start_time as before
+            elapsed_seconds = session.elapsed_seconds
 
         # Convert to minutes and apply rounding logic
         elapsed_minutes = round(elapsed_seconds / 60)
