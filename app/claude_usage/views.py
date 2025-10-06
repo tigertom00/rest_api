@@ -662,7 +662,18 @@ def dashboard_summary(request):
         )
     )
 
-    rate_limit_info = {"is_within_active_window": False}
+    rate_limit_info = {
+        "is_within_active_window": False,
+        "current_window_tokens": 0,
+        "current_window_start": None,
+        "next_reset_at": None,
+        "time_until_reset_seconds": None,
+        "time_until_reset_human": "No active window",
+        "predictions": {
+            "tokens_will_run_out": False,
+            "estimated_time_to_limit": None,
+        },
+    }
     if all_snapshots_data:
         messages = []
         for snap in all_snapshots_data:
