@@ -721,46 +721,116 @@ def dashboard_summary(request):
                         },
                     }
 
-    # Use current window data if available, otherwise use 6h totals
+    # Use active session data if available, otherwise use 6h totals
     if rate_limit_info.get("is_within_active_window"):
-        # Get current window snapshots for accurate summary
+        # Get current window snapshots
         window_start = rate_limit_info["current_window_start"]
         window_snapshots = UsageSnapshot.objects.filter(timestamp__gte=window_start)
 
-        window_stats = window_snapshots.aggregate(
-            total_tokens=Sum("total_tokens"),
-            total_cost=Sum("cost_usd"),
-            message_count=Count("id"),
-        )
-
-        # Calculate burn rate from current window only
-        from dateutil import parser
-
-        window_start_dt = parser.isoparse(window_start)
-        window_duration_minutes = (
-            timezone.now() - window_start_dt
-        ).total_seconds() / 60
-        window_burn_rate = (
-            (window_stats["total_tokens"] or 0) / window_duration_minutes
-            if window_duration_minutes > 0
-            else 0
-        )
-        window_cost_rate = (
-            float(window_stats["total_cost"] or 0) / window_duration_minutes
-            if window_duration_minutes > 0
-            else 0
-        )
-
-        # Model distribution from current window
-        window_model_dist = (
-            window_snapshots.values("model")
-            .annotate(
-                token_count=Sum("total_tokens"),
-                message_count=Count("id"),
-                cost=Sum("cost_usd"),
+        # Get active session by detecting inactivity gaps (30 minutes)
+        # Convert snapshots to message format for session detection
+        snapshot_messages = []
+        for snap in window_snapshots.order_by("timestamp"):
+            snapshot_messages.append(
+                {
+                    "timestamp": snap.timestamp.isoformat().replace("+00:00", "Z"),
+                    "message": {
+                        "model": snap.model,
+                        "usage": {
+                            "input_tokens": snap.input_tokens,
+                            "output_tokens": snap.output_tokens,
+                            "cache_creation_input_tokens": snap.cache_creation_tokens,
+                            "cache_read_input_tokens": snap.cache_read_tokens,
+                        },
+                    },
+                }
             )
-            .order_by("-token_count")
+
+        # Get active session
+        active_session = extractor.get_active_session(
+            snapshot_messages, inactivity_threshold_minutes=30
         )
+
+        if active_session and active_session["messages"]:
+            # Get timestamps of active session messages
+            session_start_time = datetime.fromisoformat(
+                active_session["messages"][0]["timestamp"].replace("Z", "+00:00")
+            )
+            session_snapshots = window_snapshots.filter(
+                timestamp__gte=session_start_time
+            )
+
+            session_stats = session_snapshots.aggregate(
+                total_tokens=Sum("total_tokens"),
+                total_cost=Sum("cost_usd"),
+                message_count=Count("id"),
+            )
+
+            # Calculate burn rate from active session only
+            session_duration_minutes = (
+                timezone.now() - session_start_time
+            ).total_seconds() / 60
+            session_burn_rate = (
+                (session_stats["total_tokens"] or 0) / session_duration_minutes
+                if session_duration_minutes > 0
+                else 0
+            )
+            session_cost_rate = (
+                float(session_stats["total_cost"] or 0) / session_duration_minutes
+                if session_duration_minutes > 0
+                else 0
+            )
+
+            # Model distribution from active session
+            session_model_dist = (
+                session_snapshots.values("model")
+                .annotate(
+                    token_count=Sum("total_tokens"),
+                    message_count=Count("id"),
+                    cost=Sum("cost_usd"),
+                )
+                .order_by("-token_count")
+            )
+
+            # Use session stats
+            window_stats = session_stats
+            window_burn_rate = session_burn_rate
+            window_cost_rate = session_cost_rate
+            window_model_dist = session_model_dist
+        else:
+            # Fallback to window stats if no active session detected
+            window_stats = window_snapshots.aggregate(
+                total_tokens=Sum("total_tokens"),
+                total_cost=Sum("cost_usd"),
+                message_count=Count("id"),
+            )
+
+            from dateutil import parser
+
+            window_start_dt = parser.isoparse(window_start)
+            window_duration_minutes = (
+                timezone.now() - window_start_dt
+            ).total_seconds() / 60
+            window_burn_rate = (
+                (window_stats["total_tokens"] or 0) / window_duration_minutes
+                if window_duration_minutes > 0
+                else 0
+            )
+            window_cost_rate = (
+                float(window_stats["total_cost"] or 0) / window_duration_minutes
+                if window_duration_minutes > 0
+                else 0
+            )
+
+            window_model_dist = (
+                window_snapshots.values("model")
+                .annotate(
+                    token_count=Sum("total_tokens"),
+                    message_count=Count("id"),
+                    cost=Sum("cost_usd"),
+                )
+                .order_by("-token_count")
+            )
 
         return Response(
             {

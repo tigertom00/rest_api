@@ -268,6 +268,61 @@ class ClaudeDataExtractor:
 
         return windows
 
+    def get_active_session(
+        self, messages: List[Dict[str, Any]], inactivity_threshold_minutes: int = 30
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Get the currently active session from messages.
+        A new session starts after inactivity_threshold_minutes of no messages.
+        """
+        if not messages:
+            return None
+
+        # Sort messages by timestamp
+        sorted_messages = sorted(
+            messages,
+            key=lambda m: datetime.fromisoformat(m["timestamp"].replace("Z", "+00:00")),
+        )
+
+        # Find sessions by detecting gaps
+        sessions = []
+        current_session = {"messages": [], "total_tokens": 0, "cost": 0}
+        prev_time = None
+
+        for msg in sorted_messages:
+            msg_time = datetime.fromisoformat(msg["timestamp"].replace("Z", "+00:00"))
+
+            # Check for inactivity gap
+            if prev_time and (msg_time - prev_time).total_seconds() > (
+                inactivity_threshold_minutes * 60
+            ):
+                # End current session and start new one
+                if current_session["messages"]:
+                    sessions.append(current_session)
+                current_session = {"messages": [], "total_tokens": 0, "cost": 0}
+
+            # Add message to current session
+            current_session["messages"].append(msg)
+            usage = msg["message"]["usage"]
+            current_session["total_tokens"] += (
+                usage.get("input_tokens", 0)
+                + usage.get("output_tokens", 0)
+                + usage.get("cache_creation_input_tokens", 0)
+                + usage.get("cache_read_input_tokens", 0)
+            )
+            current_session["cost"] += self.calculate_cost(msg)
+            prev_time = msg_time
+
+        # Add last session
+        if current_session["messages"]:
+            sessions.append(current_session)
+
+        # Return the most recent session as "active"
+        if sessions:
+            return sessions[-1]
+
+        return None
+
     def get_current_rate_limit_status(self, window_hours: int = 5) -> Dict[str, Any]:
         """
         Calculate current rate limit status including time until reset.
