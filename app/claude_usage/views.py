@@ -5,6 +5,7 @@ from rest_framework import status
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from django.utils.dateparse import parse_datetime
+from datetime import datetime
 from .models import Project, Session, UsageSnapshot
 from .serializers import (
     ProjectSerializer,
