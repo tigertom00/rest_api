@@ -6,6 +6,7 @@ from django_filters import rest_framework as filters
 from .models import (
     ElektriskKategori,
     Jobber,
+    JobberTask,
     JobbMatriell,
     Leverandorer,
     Matriell,
@@ -333,3 +334,46 @@ class TimelisteFilter(filters.FilterSet):
             end_week = start_week + timezone.timedelta(days=6)
             return queryset.filter(dato__range=[start_week.date(), end_week.date()])
         return queryset
+
+
+class JobberTaskFilter(filters.FilterSet):
+    search = filters.CharFilter(method="filter_search", help_text="Search tasks")
+    jobb = filters.ModelChoiceFilter(
+        field_name="jobb", queryset=Jobber.objects.all(), to_field_name="ordre_nr"
+    )
+    title = filters.CharFilter(field_name="title", lookup_expr="icontains")
+    completed = filters.BooleanFilter(field_name="completed")
+
+    # Date filtering
+    created_after = filters.DateTimeFilter(field_name="created_at", lookup_expr="gte")
+    created_before = filters.DateTimeFilter(field_name="created_at", lookup_expr="lte")
+    completed_after = filters.DateTimeFilter(
+        field_name="completed_at", lookup_expr="gte"
+    )
+    completed_before = filters.DateTimeFilter(
+        field_name="completed_at", lookup_expr="lte"
+    )
+
+    ordering = filters.OrderingFilter(
+        fields=(
+            ("created_at", "created_at"),
+            ("updated_at", "updated_at"),
+            ("completed_at", "completed_at"),
+            ("title", "title"),
+        ),
+        help_text='Order by field. Use "-" for descending (e.g., "-created_at")',
+    )
+
+    class Meta:
+        model = JobberTask
+        fields = []
+
+    def filter_search(self, queryset, name, value):
+        if not value:
+            return queryset
+
+        return queryset.filter(
+            models.Q(title__icontains=value)
+            | models.Q(notes__icontains=value)
+            | models.Q(jobb__tittel__icontains=value)
+        ).distinct()

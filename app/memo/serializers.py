@@ -7,6 +7,7 @@ from .models import (
     Jobber,
     JobberFile,
     JobberImage,
+    JobberTask,
     JobbMatriell,
     Leverandorer,
     Matriell,
@@ -260,6 +261,16 @@ class JobberFileSerializer(serializers.ModelSerializer):
     class Meta:
         model = JobberFile
         fields = "__all__"
+
+
+class JobberTaskSerializer(serializers.ModelSerializer):
+    jobb_tittel = serializers.CharField(source="jobb.tittel", read_only=True)
+    jobb_ordre_nr = serializers.IntegerField(source="jobb.ordre_nr", read_only=True)
+
+    class Meta:
+        model = JobberTask
+        fields = "__all__"
+        read_only_fields = ["completed_at", "created_at", "updated_at"]
 
 
 class JobberSerializer(serializers.ModelSerializer):

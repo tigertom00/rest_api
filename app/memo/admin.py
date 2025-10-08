@@ -7,6 +7,7 @@ from .models import (
     Jobber,
     JobberFile,
     JobberImage,
+    JobberTask,
     JobbMatriell,
     Leverandorer,
     Matriell,
@@ -175,6 +176,35 @@ class JobberImageAdmin(admin.ModelAdmin):
 class JobberFileAdmin(admin.ModelAdmin):
     list_display = ("id", "jobb", "file", "created_at")
     list_filter = ("jobb",)
+
+
+@admin.register(JobberTask)
+class JobberTaskAdmin(admin.ModelAdmin):
+    list_display = (
+        "id",
+        "jobb",
+        "title",
+        "completed",
+        "completed_at",
+        "created_at",
+        "updated_at",
+    )
+    list_filter = ("completed", "jobb", "created_at")
+    search_fields = ("title", "notes", "jobb__tittel")
+    readonly_fields = ("completed_at", "created_at", "updated_at")
+
+    fieldsets = (
+        ("Job Information", {"fields": ("jobb",)}),
+        ("Task Details", {"fields": ("title", "notes", "image")}),
+        (
+            "Status",
+            {"fields": ("completed", "completed_at")},
+        ),
+        (
+            "Timestamps",
+            {"fields": ("created_at", "updated_at"), "classes": ("collapse",)},
+        ),
+    )
 
 
 @admin.register(Timeliste)

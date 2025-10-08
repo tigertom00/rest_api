@@ -7,6 +7,7 @@ from .views import (
     ElektriskKategoriViewSet,
     JobberFileViewSet,
     JobberImageViewSet,
+    JobberTaskViewSet,
     JobberViewSet,
     JobbMatriellViewSet,
     LeverandorerViewSet,
@@ -23,6 +24,7 @@ router.register(r"jobber", JobberViewSet)
 router.register(r"jobbmatriell", JobbMatriellViewSet)
 router.register(r"jobb-images", JobberImageViewSet)
 router.register(r"jobb-files", JobberFileViewSet)
+router.register(r"jobber-tasks", JobberTaskViewSet)
 router.register(r"timeliste", TimelisteViewSet)
 router.register(r"timer", ActiveTimerSessionViewSet, basename="timer")
 

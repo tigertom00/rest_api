@@ -11,6 +11,7 @@ from rest_framework.viewsets import ViewSet
 from .filters import (
     ElektriskKategoriFilter,
     JobberFilter,
+    JobberTaskFilter,
     JobbMatriellFilter,
     LeverandorerFilter,
     TimelisteFilter,
@@ -21,6 +22,7 @@ from .models import (
     Jobber,
     JobberFile,
     JobberImage,
+    JobberTask,
     JobbMatriell,
     Leverandorer,
     Matriell,
@@ -33,6 +35,7 @@ from .serializers import (
     JobberFileSerializer,
     JobberImageSerializer,
     JobberSerializer,
+    JobberTaskSerializer,
     JobbMatriellSerializer,
     LeverandorerCreateSerializer,
     LeverandorerSerializer,
@@ -1756,6 +1759,115 @@ class JobberFileViewSet(viewsets.ModelViewSet):
                 "file_types": file_types,
                 "jobb_id": jobb_id,
             }
+        )
+
+
+class JobberTaskViewSet(viewsets.ModelViewSet):
+    """ViewSet for managing tasks associated with jobs (Jobber)."""
+
+    queryset = JobberTask.objects.all().order_by("-created_at")
+    serializer_class = JobberTaskSerializer
+    permission_classes = [IsAuthenticated]
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter]
+    filterset_class = JobberTaskFilter
+    search_fields = ["title", "notes", "jobb__tittel"]
+
+    def get_queryset(self):
+        """Optimize queryset with select_related."""
+        return JobberTask.objects.select_related("jobb").order_by("-created_at")
+
+    @action(detail=False, methods=["get"])
+    def by_job(self, request):
+        """
+        Get all tasks for a specific job.
+        Query params: jobb_id (ordre_nr)
+        """
+        jobb_id = request.query_params.get("jobb_id")
+        if not jobb_id:
+            return Response(
+                {"error": "jobb_id parameter is required"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            jobb = Jobber.objects.get(ordre_nr=jobb_id)
+        except Jobber.DoesNotExist:
+            return Response(
+                {"error": f"Job with ordre_nr '{jobb_id}' not found"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        tasks = JobberTask.objects.filter(jobb=jobb).order_by("-created_at")
+        serializer = self.get_serializer(tasks, many=True)
+
+        # Calculate stats
+        total_tasks = tasks.count()
+        completed_tasks = tasks.filter(completed=True).count()
+        pending_tasks = total_tasks - completed_tasks
+
+        return Response(
+            {
+                "jobb": {"ordre_nr": jobb.ordre_nr, "tittel": jobb.tittel},
+                "stats": {
+                    "total": total_tasks,
+                    "completed": completed_tasks,
+                    "pending": pending_tasks,
+                    "completion_rate": (
+                        round((completed_tasks / total_tasks) * 100, 1)
+                        if total_tasks > 0
+                        else 0
+                    ),
+                },
+                "tasks": serializer.data,
+            }
+        )
+
+    @action(detail=True, methods=["post"])
+    def toggle_complete(self, request, pk=None):
+        """
+        Toggle the completed status of a task.
+        Returns: Updated task data
+        """
+        task = self.get_object()
+
+        # Toggle completed status
+        task.completed = not task.completed
+        task.save()
+
+        serializer = self.get_serializer(task)
+        return Response(
+            {
+                "message": f"Task marked as {'completed' if task.completed else 'pending'}",
+                "task": serializer.data,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+    @action(detail=False, methods=["post"])
+    def bulk_complete(self, request):
+        """
+        Mark multiple tasks as completed or pending.
+        Expects: {"task_ids": [1, 2, 3], "completed": true}
+        """
+        task_ids = request.data.get("task_ids", [])
+        completed = request.data.get("completed", True)
+
+        if not task_ids:
+            return Response(
+                {"error": "task_ids list cannot be empty"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        updated_count = JobberTask.objects.filter(id__in=task_ids).update(
+            completed=completed
+        )
+
+        return Response(
+            {
+                "message": f"{updated_count} tasks marked as {'completed' if completed else 'pending'}",
+                "updated_count": updated_count,
+            },
+            status=status.HTTP_200_OK,
         )
 
 

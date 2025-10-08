@@ -265,6 +265,37 @@ class JobberFile(models.Model):
         return f"File for {self.jobb.tittel}"
 
 
+class JobberTask(models.Model):
+    """Model for tasks/todos associated with a specific job (Jobber)."""
+
+    jobb = models.ForeignKey("Jobber", on_delete=models.CASCADE, related_name="tasks")
+    title = models.CharField(max_length=255)
+    notes = models.TextField(blank=True)
+    completed = models.BooleanField(default=False)
+    completed_at = models.DateTimeField(null=True, blank=True)
+    image = models.ImageField(upload_to="jobber_tasks/", blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Jobber Task"
+        verbose_name_plural = "Jobber Tasks"
+        ordering = ["-created_at"]
+
+    def save(self, *args, **kwargs):
+        """Auto-set completed_at timestamp when task is marked as completed."""
+        from django.utils import timezone
+
+        if self.completed and self.completed_at is None:
+            self.completed_at = timezone.now()
+        elif not self.completed:
+            self.completed_at = None
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.title} - {self.jobb.tittel}"
+
+
 class Timeliste(models.Model):
     """Model definition for Timeliste."""
 
