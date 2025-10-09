@@ -12,6 +12,7 @@ from .utils.monitoring import health_check, metrics_endpoint
 router = routers.DefaultRouter()
 router.register("api/user", views.UsersViewSet, "users")
 router.register("api/admin/users", views.AdminUserViewSet, "admin-users")
+router.register("api/devices", views.UserDeviceViewSet, "devices")
 
 urlpatterns = [
     # path('', views.index, name='index'),
@@ -24,6 +25,11 @@ urlpatterns = [
         "auth/token/blacklist/",
         views.BlacklistTokenView.as_view(),
         name="blacklist_token",
+    ),
+    path(
+        "auth/mobile/login/",
+        views.MobileAuthView.as_view(),
+        name="mobile_auth",
     ),
     path(
         "auth/o/", include("oauth2_provider.urls", namespace="oauth2_provider")

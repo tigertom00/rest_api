@@ -227,3 +227,96 @@ class ElektriskKategoriCreateSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         return ElektriskKategori.objects.create(**validated_data)
+
+
+# * UserDevice Serializers
+class UserDeviceSerializer(serializers.ModelSerializer):
+    """Serializer for user device management."""
+
+    class Meta:
+        from restAPI.models import UserDevice
+
+        model = UserDevice
+        fields = (
+            "id",
+            "device_type",
+            "device_name",
+            "device_id",
+            "push_token",
+            "os_version",
+            "app_version",
+            "ip_address",
+            "last_active",
+            "is_active",
+            "created_at",
+        )
+        read_only_fields = ("id", "last_active", "created_at", "ip_address")
+
+
+class UserDeviceCreateSerializer(serializers.ModelSerializer):
+    """Serializer for registering a new device."""
+
+    class Meta:
+        from restAPI.models import UserDevice
+
+        model = UserDevice
+        fields = (
+            "device_type",
+            "device_name",
+            "device_id",
+            "push_token",
+            "os_version",
+            "app_version",
+        )
+
+    def create(self, validated_data):
+        from restAPI.models import UserDevice
+
+        # Add the user from the request context
+        user = self.context["request"].user
+        validated_data["user"] = user
+
+        # Get IP address from request
+        request = self.context.get("request")
+        if request:
+            x_forwarded_for = request.META.get("HTTP_X_FORWARDED_FOR")
+            if x_forwarded_for:
+                validated_data["ip_address"] = x_forwarded_for.split(",")[0]
+            else:
+                validated_data["ip_address"] = request.META.get("REMOTE_ADDR")
+
+        # If device_id is provided, check if device already exists for this user
+        device_id = validated_data.get("device_id")
+        if device_id:
+            existing_device = UserDevice.objects.filter(
+                user=user, device_id=device_id
+            ).first()
+            if existing_device:
+                # Update existing device instead of creating a new one
+                for key, value in validated_data.items():
+                    setattr(existing_device, key, value)
+                existing_device.is_active = True
+                existing_device.save()
+                return existing_device
+
+        return UserDevice.objects.create(**validated_data)
+
+
+class UserDeviceUpdateSerializer(serializers.ModelSerializer):
+    """Serializer for updating device information (push token, etc.)."""
+
+    class Meta:
+        from restAPI.models import UserDevice
+
+        model = UserDevice
+        fields = ("device_name", "push_token", "os_version", "app_version")
+
+
+class MobileAuthResponseSerializer(serializers.Serializer):
+    """Serializer for mobile authentication response with device info."""
+
+    access = serializers.CharField()
+    refresh = serializers.CharField()
+    lifetime = serializers.IntegerField()
+    device_id = serializers.UUIDField()
+    user = UserBasicSerializer()

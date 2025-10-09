@@ -17,13 +17,18 @@ from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
 from svix.webhooks import Webhook, WebhookVerificationError
 
-from .models import UserEmail, UserPhone
+from .models import UserDevice, UserEmail, UserPhone
 from .serializers import (
     AdminPasswordResetSerializer,
     AdminUserSerializer,
     AdminUserUpdateSerializer,
     BlacklistTokenSerializer,
     CreateUsersSerializer,
+    MobileAuthResponseSerializer,
+    UserBasicSerializer,
+    UserDeviceCreateSerializer,
+    UserDeviceSerializer,
+    UserDeviceUpdateSerializer,
     UsersSerializer,
 )
 from .utils.audit import AuditLogger, sensitive_operation
@@ -224,6 +229,139 @@ class BlacklistTokenView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
+# * Mobile Authentication View
+class MobileAuthView(APIView):
+    """
+    Mobile-specific authentication endpoint that combines login + device registration.
+    Returns JWT tokens, user info, and device_id in a single response.
+
+    Request body:
+    {
+        "email": "user@example.com",
+        "password": "password123",
+        "device_type": "ios",
+        "device_name": "iPhone 15",
+        "device_id": "unique-device-identifier",
+        "push_token": "ExponentPushToken[...]",
+        "os_version": "17.2",
+        "app_version": "1.0.0"
+    }
+    """
+
+    permission_classes = [permissions.AllowAny]
+
+    @extend_schema(
+        request={
+            "application/json": {
+                "type": "object",
+                "properties": {
+                    "email": {"type": "string"},
+                    "password": {"type": "string"},
+                    "device_type": {"type": "string"},
+                    "device_name": {"type": "string"},
+                    "device_id": {"type": "string"},
+                    "push_token": {"type": "string"},
+                    "os_version": {"type": "string"},
+                    "app_version": {"type": "string"},
+                },
+                "required": ["email", "password", "device_type"],
+            }
+        },
+        responses={
+            200: MobileAuthResponseSerializer,
+            401: {"description": "Invalid credentials"},
+            400: {"description": "Missing required fields"},
+        },
+    )
+    def post(self, request):
+        from django.contrib.auth import authenticate
+
+        # Extract credentials
+        email = request.data.get("email")
+        password = request.data.get("password")
+
+        if not email or not password:
+            return Response(
+                {"error": "Email and password are required"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Authenticate user
+        user = authenticate(request, username=email, password=password)
+        if not user:
+            return Response(
+                {"error": "Invalid credentials"}, status=status.HTTP_401_UNAUTHORIZED
+            )
+
+        # Generate JWT tokens
+        refresh = RefreshToken.for_user(user)
+        access_token = str(refresh.access_token)
+        refresh_token = str(refresh)
+        lifetime = int(refresh.access_token.lifetime.total_seconds())
+
+        # Extract device information
+        device_data = {
+            "device_type": request.data.get("device_type"),
+            "device_name": request.data.get("device_name", ""),
+            "device_id": request.data.get("device_id"),
+            "push_token": request.data.get("push_token"),
+            "os_version": request.data.get("os_version", ""),
+            "app_version": request.data.get("app_version", ""),
+        }
+
+        # Get IP address
+        x_forwarded_for = request.META.get("HTTP_X_FORWARDED_FOR")
+        if x_forwarded_for:
+            ip_address = x_forwarded_for.split(",")[0]
+        else:
+            ip_address = request.META.get("REMOTE_ADDR")
+
+        device_data["ip_address"] = ip_address
+
+        # Create or update device
+        device = None
+        if device_data.get("device_id"):
+            # Try to find existing device
+            device = UserDevice.objects.filter(
+                user=user, device_id=device_data["device_id"]
+            ).first()
+
+        if device:
+            # Update existing device
+            for key, value in device_data.items():
+                if value:  # Only update non-empty values
+                    setattr(device, key, value)
+            device.is_active = True
+            device.save()
+        else:
+            # Create new device
+            device = UserDevice.objects.create(user=user, **device_data)
+
+        # Log the login
+        AuditLogger.log_user_action(
+            "LOGIN",
+            "MobileAuth",
+            user,
+            request,
+            f"Mobile login from {device.get_device_type_display()}",
+        )
+
+        # Serialize user data
+        user_serializer = UserBasicSerializer(user)
+
+        # Return combined response
+        return Response(
+            {
+                "access": access_token,
+                "refresh": refresh_token,
+                "lifetime": lifetime,
+                "device_id": str(device.id),
+                "user": user_serializer.data,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+
 class AdminUserViewSet(viewsets.ModelViewSet):
     """
     Admin-only ViewSet for user management.
@@ -370,3 +508,122 @@ class AdminUserViewSet(viewsets.ModelViewSet):
 # Landing page view
 def landing_page(request):
     return render(request, "landing.html")
+
+
+# * UserDevice ViewSet for session/device management
+class UserDeviceViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet for managing user devices (primarily mobile devices).
+    Supports registering new devices, updating push tokens, and revoking device access.
+    """
+
+    permission_classes = [permissions.IsAuthenticated]
+    filter_backends = [filters.OrderingFilter]
+    ordering_fields = ["last_active", "created_at"]
+    ordering = ["-last_active"]
+
+    def get_queryset(self):
+        # Users can only see their own devices
+        return UserDevice.objects.filter(user=self.request.user)
+
+    def get_serializer_class(self):
+        if self.action == "create":
+            return UserDeviceCreateSerializer
+        elif self.action in ["update", "partial_update"]:
+            return UserDeviceUpdateSerializer
+        return UserDeviceSerializer
+
+    def perform_create(self, serializer):
+        # User is set in the serializer's create method
+        serializer.save()
+
+    @extend_schema(
+        request=None,
+        responses={
+            200: {"description": "Device revoked successfully"},
+            404: {"description": "Device not found"},
+        },
+    )
+    @action(detail=True, methods=["post"], url_path="revoke")
+    def revoke_device(self, request, pk=None):
+        """
+        Revoke access for a specific device.
+
+        This will set is_active=False and effectively log out the device.
+        """
+        device = self.get_object()
+        device.revoke()
+
+        # Log the action
+        AuditLogger.log_user_action(
+            "LOGOUT",
+            "UserDevice",
+            request.user,
+            request,
+            f"Device {device.device_name or device.device_type} revoked",
+        )
+
+        return Response(
+            {
+                "message": f"Device '{device.device_name or device.get_device_type_display()}' has been revoked",
+                "device_id": str(device.id),
+            }
+        )
+
+    @extend_schema(
+        request=None,
+        responses={200: UserDeviceSerializer(many=True)},
+    )
+    @action(detail=False, methods=["get"], url_path="active")
+    def active_devices(self, request):
+        """
+        Get all active devices for the current user.
+        """
+        active_devices = self.get_queryset().filter(is_active=True)
+        serializer = self.get_serializer(active_devices, many=True)
+        return Response(serializer.data)
+
+    @extend_schema(
+        request=None,
+        responses={
+            200: {"description": "All devices revoked except current one"},
+        },
+    )
+    @action(detail=False, methods=["post"], url_path="revoke-all-others")
+    def revoke_all_others(self, request):
+        """
+        Revoke all other devices except the one making this request.
+
+        The device_id should be provided in the request body to identify
+        the current device to keep active.
+        """
+        current_device_id = request.data.get("current_device_id")
+
+        if not current_device_id:
+            return Response(
+                {"error": "current_device_id is required"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Revoke all devices except the current one
+        devices_to_revoke = (
+            self.get_queryset().filter(is_active=True).exclude(id=current_device_id)
+        )
+        count = devices_to_revoke.count()
+        devices_to_revoke.update(is_active=False)
+
+        # Log the action
+        AuditLogger.log_user_action(
+            "LOGOUT",
+            "UserDevice",
+            request.user,
+            request,
+            f"Revoked {count} other devices",
+        )
+
+        return Response(
+            {
+                "message": f"Successfully revoked {count} device(s)",
+                "revoked_count": count,
+            }
+        )

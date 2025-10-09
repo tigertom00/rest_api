@@ -255,6 +255,7 @@ class JobberImageSerializer(serializers.ModelSerializer):
     class Meta:
         model = JobberImage
         fields = "__all__"
+        read_only_fields = ["thumbnail"]
 
 
 class JobberFileSerializer(serializers.ModelSerializer):
@@ -270,7 +271,7 @@ class JobberTaskSerializer(serializers.ModelSerializer):
     class Meta:
         model = JobberTask
         fields = "__all__"
-        read_only_fields = ["completed_at", "created_at", "updated_at"]
+        read_only_fields = ["completed_at", "created_at", "updated_at", "thumbnail"]
 
 
 class JobberSerializer(serializers.ModelSerializer):

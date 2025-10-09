@@ -231,3 +231,96 @@ class ChatSession(models.Model):
             self.connected_at = timezone.now()
         self.is_active = True
         self.save()
+
+
+class UserDevice(models.Model):
+    """
+    Model for tracking user devices (primarily mobile devices).
+    Used for push notifications, session management, and security monitoring.
+    """
+
+    DEVICE_TYPES = [
+        ("ios", "iOS"),
+        ("android", "Android"),
+        ("web", "Web Browser"),
+        ("desktop", "Desktop App"),
+        ("other", "Other"),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(
+        CustomUser, on_delete=models.CASCADE, related_name="devices"
+    )
+    device_type = models.CharField(max_length=20, choices=DEVICE_TYPES)
+    device_name = models.CharField(
+        max_length=255,
+        blank=True,
+        help_text="User-friendly device name (e.g., 'iPhone 15')",
+    )
+
+    # Device identification
+    device_id = models.CharField(
+        max_length=255,
+        blank=True,
+        null=True,
+        help_text="Unique device identifier from the device",
+    )
+
+    # Push notification token (for Expo or FCM/APNS)
+    push_token = models.CharField(
+        max_length=500,
+        blank=True,
+        null=True,
+        help_text="Expo push token or FCM/APNS token",
+    )
+
+    # Device/OS information
+    os_version = models.CharField(max_length=50, blank=True)
+    app_version = models.CharField(max_length=50, blank=True)
+    user_agent = models.TextField(blank=True)
+
+    # Security tracking
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
+    last_active = models.DateTimeField(auto_now=True)
+    is_active = models.BooleanField(
+        default=True, help_text="Set to False to revoke this device session"
+    )
+
+    # Timestamps
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "User Device"
+        verbose_name_plural = "User Devices"
+        ordering = ["-last_active"]
+        indexes = [
+            models.Index(fields=["user", "is_active"]),
+            models.Index(fields=["device_id"]),
+            models.Index(fields=["push_token"]),
+            models.Index(fields=["last_active"]),
+        ]
+        # Ensure unique device_id per user (if device_id is provided)
+        constraints = [
+            models.UniqueConstraint(
+                fields=["user", "device_id"],
+                condition=models.Q(device_id__isnull=False),
+                name="unique_user_device_id",
+            )
+        ]
+
+    def __str__(self):
+        device_display = self.device_name or f"{self.get_device_type_display()}"
+        return f"{self.user.email} - {device_display}"
+
+    def revoke(self):
+        """Revoke this device's access"""
+        self.is_active = False
+        self.save()
+
+    def update_activity(self, ip_address=None):
+        """Update last active timestamp and optionally IP address"""
+        if ip_address:
+            self.ip_address = ip_address
+        self.last_active = timezone.now()
+        self.save(update_fields=["last_active", "ip_address"])

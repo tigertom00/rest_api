@@ -250,10 +250,53 @@ class JobbMatriell(models.Model):
 class JobberImage(models.Model):
     jobb = models.ForeignKey("Jobber", on_delete=models.CASCADE, related_name="images")
     image = models.ImageField(upload_to="jobb_images/")
+    thumbnail = models.ImageField(
+        upload_to="jobb_images/thumbnails/", blank=True, null=True
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
         return f"Image for {self.jobb.tittel}"
+
+    def save(self, *args, **kwargs):
+        """Generate thumbnail on save"""
+        super().save(*args, **kwargs)
+
+        # Generate thumbnail if image exists and thumbnail doesn't exist yet
+        if self.image and not self.thumbnail:
+            self.generate_thumbnail()
+
+    def generate_thumbnail(self, size=(300, 300)):
+        """Generate a thumbnail for the image"""
+        from io import BytesIO
+
+        from django.core.files.base import ContentFile
+        from PIL import Image
+
+        if not self.image:
+            return
+
+        # Open the image
+        img = Image.open(self.image.path)
+
+        # Convert to RGB if necessary (for PNG with transparency, etc.)
+        if img.mode not in ("RGB", "RGBA"):
+            img = img.convert("RGB")
+
+        # Generate thumbnail maintaining aspect ratio
+        img.thumbnail(size, Image.Resampling.LANCZOS)
+
+        # Save thumbnail to a BytesIO object
+        thumb_io = BytesIO()
+        img.save(thumb_io, format="JPEG", quality=85)
+        thumb_io.seek(0)
+
+        # Save to the thumbnail field
+        thumbnail_name = f"thumb_{self.image.name.split('/')[-1]}"
+        self.thumbnail.save(thumbnail_name, ContentFile(thumb_io.read()), save=False)
+
+        # Save the model again to update the thumbnail field
+        super().save(update_fields=["thumbnail"])
 
 
 class JobberFile(models.Model):
@@ -274,6 +317,9 @@ class JobberTask(models.Model):
     completed = models.BooleanField(default=False)
     completed_at = models.DateTimeField(null=True, blank=True)
     image = models.ImageField(upload_to="jobber_tasks/", blank=True, null=True)
+    thumbnail = models.ImageField(
+        upload_to="jobber_tasks/thumbnails/", blank=True, null=True
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -290,7 +336,46 @@ class JobberTask(models.Model):
             self.completed_at = timezone.now()
         elif not self.completed:
             self.completed_at = None
+
+        # Call parent save first
+        is_new = self.pk is None
         super().save(*args, **kwargs)
+
+        # Generate thumbnail if image exists and thumbnail doesn't exist yet
+        if self.image and not self.thumbnail:
+            self.generate_thumbnail()
+
+    def generate_thumbnail(self, size=(300, 300)):
+        """Generate a thumbnail for the image"""
+        from io import BytesIO
+
+        from django.core.files.base import ContentFile
+        from PIL import Image
+
+        if not self.image:
+            return
+
+        # Open the image
+        img = Image.open(self.image.path)
+
+        # Convert to RGB if necessary (for PNG with transparency, etc.)
+        if img.mode not in ("RGB", "RGBA"):
+            img = img.convert("RGB")
+
+        # Generate thumbnail maintaining aspect ratio
+        img.thumbnail(size, Image.Resampling.LANCZOS)
+
+        # Save thumbnail to a BytesIO object
+        thumb_io = BytesIO()
+        img.save(thumb_io, format="JPEG", quality=85)
+        thumb_io.seek(0)
+
+        # Save to the thumbnail field
+        thumbnail_name = f"thumb_{self.image.name.split('/')[-1]}"
+        self.thumbnail.save(thumbnail_name, ContentFile(thumb_io.read()), save=False)
+
+        # Save the model again to update the thumbnail field
+        super().save(update_fields=["thumbnail"])
 
     def __str__(self):
         return f"{self.title} - {self.jobb.tittel}"
