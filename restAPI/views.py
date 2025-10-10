@@ -338,13 +338,7 @@ class MobileAuthView(APIView):
             device = UserDevice.objects.create(user=user, **device_data)
 
         # Log the login
-        AuditLogger.log_user_action(
-            "LOGIN",
-            "MobileAuth",
-            user,
-            request,
-            f"Mobile login from {device.get_device_type_display()}",
-        )
+        AuditLogger.log_login(user, request, success=True)
 
         # Serialize user data
         user_serializer = UserBasicSerializer(user)
@@ -555,12 +549,13 @@ class UserDeviceViewSet(viewsets.ModelViewSet):
         device.revoke()
 
         # Log the action
-        AuditLogger.log_user_action(
-            "LOGOUT",
-            "UserDevice",
-            request.user,
-            request,
-            f"Device {device.device_name or device.device_type} revoked",
+        AuditLogger.log_action(
+            action="LOGOUT",
+            resource="UserDevice",
+            description=f"Device {device.device_name or device.device_type} revoked",
+            user=request.user,
+            request=request,
+            resource_id=str(device.id),
         )
 
         return Response(
@@ -613,12 +608,12 @@ class UserDeviceViewSet(viewsets.ModelViewSet):
         devices_to_revoke.update(is_active=False)
 
         # Log the action
-        AuditLogger.log_user_action(
-            "LOGOUT",
-            "UserDevice",
-            request.user,
-            request,
-            f"Revoked {count} other devices",
+        AuditLogger.log_action(
+            action="LOGOUT",
+            resource="UserDevice",
+            description=f"Revoked {count} other devices",
+            user=request.user,
+            request=request,
         )
 
         return Response(
