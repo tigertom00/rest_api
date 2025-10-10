@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
-from .models import CustomUser, UserEmail, UserPhone, ChatSession
+from .models import CustomUser, UserEmail, UserPhone, ChatSession, UserDevice
 from rest_framework.authtoken.models import Token
 
 Token._meta.verbose_name = "API Token"
@@ -119,3 +119,66 @@ class ChatSessionAdmin(admin.ModelAdmin):
     )
     readonly_fields = ("id", "created_at", "last_ping")
     raw_id_fields = ("user",)
+
+
+@admin.register(UserDevice)
+class UserDeviceAdmin(admin.ModelAdmin):
+    list_display = (
+        "user",
+        "device_name",
+        "device_type",
+        "os_version",
+        "app_version",
+        "is_active",
+        "last_active",
+        "created_at",
+    )
+    list_filter = ("device_type", "is_active", "created_at", "last_active")
+    search_fields = (
+        "user__email",
+        "device_name",
+        "device_id",
+        "ip_address",
+        "push_token",
+    )
+    readonly_fields = ("id", "created_at", "updated_at", "last_active")
+    raw_id_fields = ("user",)
+    date_hierarchy = "created_at"
+
+    fieldsets = (
+        (None, {"fields": ("id", "user", "is_active")}),
+        (
+            "Device Information",
+            {
+                "fields": (
+                    "device_type",
+                    "device_name",
+                    "device_id",
+                    "os_version",
+                    "app_version",
+                    "user_agent",
+                )
+            },
+        ),
+        (
+            "Push Notifications",
+            {"fields": ("push_token",)},
+        ),
+        (
+            "Security & Tracking",
+            {"fields": ("ip_address", "last_active")},
+        ),
+        ("Timestamps", {"fields": ("created_at", "updated_at")}),
+    )
+
+    actions = ["revoke_selected_devices", "activate_selected_devices"]
+
+    @admin.action(description="Revoke selected devices")
+    def revoke_selected_devices(self, request, queryset):
+        count = queryset.update(is_active=False)
+        self.message_user(request, f"Successfully revoked {count} device(s).")
+
+    @admin.action(description="Activate selected devices")
+    def activate_selected_devices(self, request, queryset):
+        count = queryset.update(is_active=True)
+        self.message_user(request, f"Successfully activated {count} device(s).")
