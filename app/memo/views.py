@@ -2047,6 +2047,212 @@ class TimelisteViewSet(viewsets.ModelViewSet):
             }
         )
 
+    @action(detail=False, methods=["get"])
+    def export_excel(self, request):
+        """
+        Export time entries to Excel format.
+
+        Query params:
+        - period (required): One of: this_week, last_week, this_month, last_month, all_time
+        - user_id (optional): User ID (defaults to current user)
+        - jobb (optional): Job ID (filters by specific job)
+
+        Returns: Excel file download
+        """
+        from django.http import FileResponse
+
+        from .services.export import TimeEntriesExportService
+
+        # Validate period parameter
+        period = request.query_params.get("period")
+        if not period:
+            return Response(
+                {"error": "period parameter is required"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        valid_periods = [
+            "this_week",
+            "last_week",
+            "this_month",
+            "last_month",
+            "all_time",
+        ]
+        if period not in valid_periods:
+            return Response(
+                {
+                    "error": f"Invalid period. Must be one of: {', '.join(valid_periods)}"
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Determine user
+        user = request.user
+        user_id = request.query_params.get("user_id")
+        if user_id:
+            try:
+                from django.contrib.auth import get_user_model
+
+                User = get_user_model()
+                user = User.objects.get(id=user_id)
+            except User.DoesNotExist:
+                return Response(
+                    {"error": f"User with id {user_id} not found"},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+
+        # Build queryset
+        queryset = Timeliste.objects.filter(user=user)
+
+        # Apply date range filter
+        if period != "all_time":
+            try:
+                start_date, end_date, _ = TimeEntriesExportService.calculate_date_range(
+                    period
+                )
+                queryset = queryset.filter(dato__gte=start_date, dato__lte=end_date)
+            except ValueError as e:
+                return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Filter by job if provided
+        jobb_id = request.query_params.get("jobb")
+        if jobb_id:
+            try:
+                jobb = Jobber.objects.get(ordre_nr=jobb_id)
+                queryset = queryset.filter(jobb=jobb)
+            except Jobber.DoesNotExist:
+                return Response(
+                    {"error": f"Job with ordre_nr '{jobb_id}' not found"},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+
+        # Generate Excel file
+        try:
+            excel_file = TimeEntriesExportService.generate_excel(queryset, period, user)
+        except Exception as e:
+            return Response(
+                {"error": f"Failed to generate Excel file: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+        # Generate filename
+        from datetime import datetime
+
+        timestamp = datetime.now().strftime("%Y%m%d")
+        filename = f"timeentries_{user.username}_{period}_{timestamp}.xlsx"
+
+        # Return file response
+        response = FileResponse(
+            excel_file,
+            as_attachment=True,
+            filename=filename,
+            content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        )
+        return response
+
+    @action(detail=False, methods=["get"])
+    def export_pdf(self, request):
+        """
+        Export time entries to PDF format.
+
+        Query params:
+        - period (required): One of: this_week, last_week, this_month, last_month, all_time
+        - user_id (optional): User ID (defaults to current user)
+        - jobb (optional): Job ID (filters by specific job)
+
+        Returns: PDF file download
+        """
+        from django.http import FileResponse
+
+        from .services.export import TimeEntriesExportService
+
+        # Validate period parameter
+        period = request.query_params.get("period")
+        if not period:
+            return Response(
+                {"error": "period parameter is required"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        valid_periods = [
+            "this_week",
+            "last_week",
+            "this_month",
+            "last_month",
+            "all_time",
+        ]
+        if period not in valid_periods:
+            return Response(
+                {
+                    "error": f"Invalid period. Must be one of: {', '.join(valid_periods)}"
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Determine user
+        user = request.user
+        user_id = request.query_params.get("user_id")
+        if user_id:
+            try:
+                from django.contrib.auth import get_user_model
+
+                User = get_user_model()
+                user = User.objects.get(id=user_id)
+            except User.DoesNotExist:
+                return Response(
+                    {"error": f"User with id {user_id} not found"},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+
+        # Build queryset
+        queryset = Timeliste.objects.filter(user=user)
+
+        # Apply date range filter
+        if period != "all_time":
+            try:
+                start_date, end_date, _ = TimeEntriesExportService.calculate_date_range(
+                    period
+                )
+                queryset = queryset.filter(dato__gte=start_date, dato__lte=end_date)
+            except ValueError as e:
+                return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Filter by job if provided
+        jobb_id = request.query_params.get("jobb")
+        if jobb_id:
+            try:
+                jobb = Jobber.objects.get(ordre_nr=jobb_id)
+                queryset = queryset.filter(jobb=jobb)
+            except Jobber.DoesNotExist:
+                return Response(
+                    {"error": f"Job with ordre_nr '{jobb_id}' not found"},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+
+        # Generate PDF file
+        try:
+            pdf_file = TimeEntriesExportService.generate_pdf(queryset, period, user)
+        except Exception as e:
+            return Response(
+                {"error": f"Failed to generate PDF file: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+        # Generate filename
+        from datetime import datetime
+
+        timestamp = datetime.now().strftime("%Y%m%d")
+        filename = f"timeentries_{user.username}_{period}_{timestamp}.pdf"
+
+        # Return file response
+        response = FileResponse(
+            pdf_file,
+            as_attachment=True,
+            filename=filename,
+            content_type="application/pdf",
+        )
+        return response
+
 
 class ActiveTimerSessionViewSet(viewsets.ModelViewSet):
     """
